@@ -14,6 +14,13 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.0.2 proof of no concept
+- the actual bits are sent out fine, and the clock is OK, but...
+- the start of SIN is not together with start of SCLK
+- the timer to shutdown the SCLK is unreliable
+- the timer to shutdown the SCLK has an offset of ~900 microseconds
+- maybe using the interupt on send complete can provide the xlat??
+
 ### 0.0.1 bootstrapping LCM4ESP32
 - no useful functionality yet
 - UDPlogger and wifi working

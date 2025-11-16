@@ -9,6 +9,7 @@
 #include "nvs.h"
 #include "esp_wifi.h"
 #include "esp_netif_sntp.h"
+#include "driver/i2s_std.h"
 // #include "lcm_api.h"
 #include <udplogger.h>
 //#include "driver/uart.h"
@@ -18,8 +19,16 @@
 #include "mqtt_client.h"
 #include "esp_ota_ops.h" //for esp_app_get_description
 #include <cJSON.h>
+#include "esp_timer.h"
 
 // You must set version.txt file to match github version tag x.y.z for LCM4ESP32 to work
+
+#define SCLK_PIN  GPIO_NUM_25
+#define XLAT_PIN  GPIO_NUM_26
+#define SINT_PIN  GPIO_NUM_27
+#define SINB_PIN  GPIO_NUM_14
+#define BLNK_PIN  GPIO_NUM_12
+
 
 int display_idx=0;
 char txt1[128],   txt2[128],   txt3[128];
@@ -228,6 +237,34 @@ static void ota_string() {
     //DO NOT free the otas since it carries the config pieces
 }
 
+static i2s_chan_handle_t   tx_chan;    //I2S tx channel handler
+#define BUFF_SIZE 4
+void send_screen() {
+    uint64_t delta, start_time=esp_timer_get_time();
+    size_t bytes_loaded;
+    uint16_t dma_buf[BUFF_SIZE];
+    dma_buf[0]=0x8002; dma_buf[1]=0x4004; dma_buf[2]=0x4008; dma_buf[3]=0x4001; //test pattern
+    UDPLUS("SND ");
+    //transmit the dma_buf once
+    if (i2s_channel_preload_data(tx_chan, dma_buf, BUFF_SIZE*sizeof(uint16_t), &bytes_loaded)!=ESP_OK) UDPLUS("i2s_channel_preload_data failed\n");
+    UDPLUS("preloaded %d bytes ",bytes_loaded); //actual start of SINT after SCLK is random delayed up to 100 micro seconds
+    if (i2s_channel_enable(tx_chan)!=ESP_OK) UDPLUS("i2s_channel_enable failed\n"); //Enable the TX channel
+    //vTaskDelay(20/portTICK_PERIOD_MS); //message is 512microseconds
+    while ((delta=((uint64_t) esp_timer_get_time() - start_time)) <= 1400) {} //timing is unreliable and 1400 results in 550 microseconds of SCLK
+    if (i2s_channel_disable(tx_chan)!=ESP_OK) UDPLUS("i2s_channel_disable failed\n"); //Disable the TX channel
+    UDPLUS("delta %lld\n", delta);
+}
+
+void i2s_init() { //note that databits idle voltage is zero and cannot be flipped
+    i2s_chan_config_t tx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_AUTO, I2S_ROLE_MASTER);
+    i2s_std_config_t tx_std_cfg = {
+        .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(4000), //results in 128kHz bitclock
+        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        .gpio_cfg = {.mclk=I2S_GPIO_UNUSED, .bclk=SCLK_PIN, .ws=I2S_GPIO_UNUSED, .din=I2S_GPIO_UNUSED, .dout=SINT_PIN},
+    };
+    if (i2s_new_channel(&tx_chan_cfg, &tx_chan, NULL)!=ESP_OK) UDPLUS("i2s_new_channel failed\n"); //no Rx
+    if (i2s_channel_init_std_mode(tx_chan, &tx_std_cfg)!=ESP_OK) UDPLUS("i2s_channel_init_std_mode failed\n");
+}
 
 void main_task(void *arg) {
     udplog_init(3);
@@ -243,8 +280,10 @@ void main_task(void *arg) {
 
     mqtt_app_start();
 
+    i2s_init();
     while (true) {
-        vTaskDelay(10);
+        send_screen();
+        vTaskDelay(2000/portTICK_PERIOD_MS);
     }
 }    
 
