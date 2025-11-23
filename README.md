@@ -14,6 +14,11 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.1.1 improved brightness levels
+- much clearer level differences
+- experiments with alternative delay methods
+- for now, 1 microsecond with esp_timer_get_time() loop works OK
+
 ### 0.1.0 four level pwm per LED bitbanging
 - with artificial delay of 10 microseconds works well
 - maybe levelshifter is bandwidth limited since no-delay does not work well

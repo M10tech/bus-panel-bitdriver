@@ -43,23 +43,29 @@ uint32_t screen[COLUMNS] = {0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,0xffff00
 
 #define ARMIT 0 //to arm the clock, we set it low
 #define SHIFT 1 //to shift the data in, we set the clock high for a rising edge
-#define DELAY 10 //microseconds
-//#define DELAYIT(t)   do {} while(0)
-#define DELAYIT(t)     do { start_time=esp_timer_get_time();while(((uint64_t)esp_timer_get_time()-start_time)<t){} } while(0)
+#define DELAY 1 //microseconds
+
+/*#define DELAYIT(t)   do {__asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop"); \
+                         __asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop"); \
+<repeat 66 lines e.g.>
+                         __asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop"); \
+                         __asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop");__asm__ __volatile__ ("nop"); \
+                        } while(0) */
+#define DELAYIT(t)     do { start_time=esp_timer_get_time();while(((uint64_t)esp_timer_get_time()-start_time)<t){} } while(0) //takes 10750 microseconds per DELAYIT(10000)
 //#define DELAYIT(t)     do { vTaskDelay(1);} while(0)
-#define ONALLBITS(b)   do { gpio_set_level(SINT_PIN,((screen[col]&b    )== b    )?1:0); \
+#define ONALLBITS(b,d) do { gpio_set_level(SINT_PIN,((screen[col]&b    )== b    )?1:0); \
                             gpio_set_level(SCLK_PIN,ARMIT ); \
-                            DELAYIT(DELAY); \
+                            DELAYIT(d); \
                             gpio_set_level(SINB_PIN,((screen[col]&b<<16)== b<<16)?1:0); \
                             gpio_set_level(SCLK_PIN,SHIFT); \
-                            DELAYIT(DELAY); \
+                            DELAYIT(d); \
                           } while(0) //check for a full match to set the SIN bits
-#define ONSOMEBIT(b)  do { gpio_set_level(SINT_PIN,(screen[col]&b    )?1:0); \
+#define ONSOMEBIT(b,d) do { gpio_set_level(SINT_PIN,(screen[col]&b    )?1:0); \
                             gpio_set_level(SCLK_PIN,ARMIT ); \
-                            DELAYIT(DELAY); \
+                            DELAYIT(d); \
                             gpio_set_level(SINB_PIN,(screen[col]&b<<16)?1:0); \
                             gpio_set_level(SCLK_PIN,SHIFT); \
-                            DELAYIT(DELAY); \
+                            DELAYIT(d); \
                           } while(0) //check for some match to set the SIN bits
 
 #define LOAD 0 //XLAT low  means to not latch the new values to the LEDS
@@ -69,40 +75,40 @@ void show_it_once(void) {
     int col;
     gpio_set_level(XLAT_PIN,LOAD);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11
-        ONALLBITS(0x00000003);
-        ONALLBITS(0x0000000c);
-        ONALLBITS(0x00000030);
-        ONALLBITS(0x000000c0);
-        ONALLBITS(0x00000300);
-        ONALLBITS(0x00000c00);
-        ONALLBITS(0x00003000);
-        ONALLBITS(0x0000c000);
+        ONALLBITS(0x00000003,DELAY);
+        ONALLBITS(0x0000000c,DELAY);
+        ONALLBITS(0x00000030,DELAY);
+        ONALLBITS(0x000000c0,DELAY);
+        ONALLBITS(0x00000300,DELAY);
+        ONALLBITS(0x00000c00,DELAY);
+        ONALLBITS(0x00003000,DELAY);
+        ONALLBITS(0x0000c000,DELAY);
     }
     gpio_set_level(XLAT_PIN,SHOW);
     DELAYIT(DELAY);
     gpio_set_level(XLAT_PIN,LOAD);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11 or 0b10
-        ONALLBITS(0x00000002);
-        ONALLBITS(0x0000000a);
-        ONALLBITS(0x00000020);
-        ONALLBITS(0x000000a0);
-        ONALLBITS(0x00000200);
-        ONALLBITS(0x00000a00);
-        ONALLBITS(0x00002000);
-        ONALLBITS(0x0000a000);
+        ONALLBITS(0x00000002,DELAY*6);
+        ONALLBITS(0x0000000a,DELAY*6);
+        ONALLBITS(0x00000020,DELAY*6);
+        ONALLBITS(0x000000a0,DELAY*6);
+        ONALLBITS(0x00000200,DELAY*6);
+        ONALLBITS(0x00000a00,DELAY*6);
+        ONALLBITS(0x00002000,DELAY*6);
+        ONALLBITS(0x0000a000,DELAY*6);
     }
     gpio_set_level(XLAT_PIN,SHOW);
     DELAYIT(DELAY);
     gpio_set_level(XLAT_PIN,LOAD);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11, 0b10 or 0b01
-        ONSOMEBIT(0x00000003);
-        ONSOMEBIT(0x0000000c);
-        ONSOMEBIT(0x00000030);
-        ONSOMEBIT(0x000000c0);
-        ONSOMEBIT(0x00000300);
-        ONSOMEBIT(0x00000c00);
-        ONSOMEBIT(0x00003000);
-        ONSOMEBIT(0x0000c000);
+        ONSOMEBIT(0x00000003,DELAY*3);
+        ONSOMEBIT(0x0000000c,DELAY*3);
+        ONSOMEBIT(0x00000030,DELAY*3);
+        ONSOMEBIT(0x000000c0,DELAY*3);
+        ONSOMEBIT(0x00000300,DELAY*3);
+        ONSOMEBIT(0x00000c00,DELAY*3);
+        ONSOMEBIT(0x00003000,DELAY*3);
+        ONSOMEBIT(0x0000c000,DELAY*3);
     }
     gpio_set_level(XLAT_PIN,SHOW);
     DELAYIT(DELAY);
@@ -347,10 +353,16 @@ void main_task(void *arg) {
 
     mqtt_app_start();
 
+    vTaskDelay(100);
+    uint64_t start_time;
+    start_time=esp_timer_get_time();
+    DELAYIT(10000);
+    UDPLUS("10000 delays: %llu microseconds\n",esp_timer_get_time()-start_time);
     init_gpio();
     while (true) {
-        show_it_once();
-        //vTaskDelay(2000/portTICK_PERIOD_MS);
+        start_time=esp_timer_get_time();
+        for (int i=0; i<100; i++) show_it_once();
+        UDPLUS("100 refresh: %llu microseconds\n",esp_timer_get_time()-start_time);
     }
 }    
 
