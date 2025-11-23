@@ -2,7 +2,7 @@
 
 # Bus Display BitDriver
 
-Use i2s to directly drive the TLC5921 chips found in the Ameli buspanel,  
+Use bitbanging to directly drive the TLC5921 chips found in the Ameli buspanel,  
 without using the 80C32 based controller.
 
 Use the LCM4ESP32 concept to run this  
@@ -13,6 +13,15 @@ https://github.com/HomeACcessoryKid/LCM4ESP32/blob/main/deploy.md
 Also read the WIKI to get background info on the hardware needed and the priciples involved.
 
 ## Version History
+
+### 0.1.0 four level pwm per LED bitbanging
+- with artificial delay of 10 microseconds works well
+- maybe levelshifter is bandwidth limited since no-delay does not work well
+- differences between led levels not easy to appreciate
+- no blanking used so far, which might (or not) interfere
+
+### abandoned i2s and went to bitbanging
+- note that in 0.0.3 I forgot to call init_xlat() so maybe there was still some use, but who cares?
 
 ### 0.0.3 really doesn't work
 - using on_sent isr to drive xlat has still issues since clock continues driving

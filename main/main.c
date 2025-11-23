@@ -24,11 +24,92 @@
 
 // You must set version.txt file to match github version tag x.y.z for LCM4ESP32 to work
 
-#define SCLK_PIN  GPIO_NUM_25
-#define XLAT_PIN  GPIO_NUM_26
-#define SINT_PIN  GPIO_NUM_27
-#define SINB_PIN  GPIO_NUM_14
+#define COLUMNS   28 //number of colums on the panel
+uint32_t screen[COLUMNS] = {0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
+                            0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
+                            0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
+                            0xffffffff,0xaaaaaaaa,0x55555555,0x00000000};
+
 #define BLNK_PIN  GPIO_NUM_12
+#define XLAT_PIN  GPIO_NUM_14
+#define SCLK_PIN  GPIO_NUM_27
+#define SINT_PIN  GPIO_NUM_26
+#define SINB_PIN  GPIO_NUM_25
+
+// gpio_set_level(SINT_PIN,((data&b    )== b    )?1:0); //trigger bit TOP
+// gpio_set_level(SCLK_PIN,ARMIT);                      //make clock more symmetrical
+// gpio_set_level(SINB_PIN,((data&b<<16)== b<<16)?1:0); //trigger bit BOTTOM
+// gpio_set_level(SCLK_PIN,SHIFT);                      //shift on rising edge
+
+#define ARMIT 0 //to arm the clock, we set it low
+#define SHIFT 1 //to shift the data in, we set the clock high for a rising edge
+#define DELAY 10 //microseconds
+//#define DELAYIT(t)   do {} while(0)
+#define DELAYIT(t)     do { start_time=esp_timer_get_time();while(((uint64_t)esp_timer_get_time()-start_time)<t){} } while(0)
+//#define DELAYIT(t)     do { vTaskDelay(1);} while(0)
+#define ONALLBITS(b)   do { gpio_set_level(SINT_PIN,((screen[col]&b    )== b    )?1:0); \
+                            gpio_set_level(SCLK_PIN,ARMIT ); \
+                            DELAYIT(DELAY); \
+                            gpio_set_level(SINB_PIN,((screen[col]&b<<16)== b<<16)?1:0); \
+                            gpio_set_level(SCLK_PIN,SHIFT); \
+                            DELAYIT(DELAY); \
+                          } while(0) //check for a full match to set the SIN bits
+#define ONSOMEBIT(b)  do { gpio_set_level(SINT_PIN,(screen[col]&b    )?1:0); \
+                            gpio_set_level(SCLK_PIN,ARMIT ); \
+                            DELAYIT(DELAY); \
+                            gpio_set_level(SINB_PIN,(screen[col]&b<<16)?1:0); \
+                            gpio_set_level(SCLK_PIN,SHIFT); \
+                            DELAYIT(DELAY); \
+                          } while(0) //check for some match to set the SIN bits
+
+#define LOAD 0 //XLAT low  means to not latch the new values to the LEDS
+#define SHOW 1 //XLAT high means to     latch the new values to the LEDS
+void show_it_once(void) {
+    uint64_t start_time;
+    int col;
+    gpio_set_level(XLAT_PIN,LOAD);
+    for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11
+        ONALLBITS(0x00000003);
+        ONALLBITS(0x0000000c);
+        ONALLBITS(0x00000030);
+        ONALLBITS(0x000000c0);
+        ONALLBITS(0x00000300);
+        ONALLBITS(0x00000c00);
+        ONALLBITS(0x00003000);
+        ONALLBITS(0x0000c000);
+    }
+    gpio_set_level(XLAT_PIN,SHOW);
+    DELAYIT(DELAY);
+    gpio_set_level(XLAT_PIN,LOAD);
+    for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11 or 0b10
+        ONALLBITS(0x00000002);
+        ONALLBITS(0x0000000a);
+        ONALLBITS(0x00000020);
+        ONALLBITS(0x000000a0);
+        ONALLBITS(0x00000200);
+        ONALLBITS(0x00000a00);
+        ONALLBITS(0x00002000);
+        ONALLBITS(0x0000a000);
+    }
+    gpio_set_level(XLAT_PIN,SHOW);
+    DELAYIT(DELAY);
+    gpio_set_level(XLAT_PIN,LOAD);
+    for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11, 0b10 or 0b01
+        ONSOMEBIT(0x00000003);
+        ONSOMEBIT(0x0000000c);
+        ONSOMEBIT(0x00000030);
+        ONSOMEBIT(0x000000c0);
+        ONSOMEBIT(0x00000300);
+        ONSOMEBIT(0x00000c00);
+        ONSOMEBIT(0x00003000);
+        ONSOMEBIT(0x0000c000);
+    }
+    gpio_set_level(XLAT_PIN,SHOW);
+    DELAYIT(DELAY);
+    gpio_set_level(XLAT_PIN,LOAD);
+}
+
+
 
 
 int display_idx=0;
@@ -238,67 +319,19 @@ static void ota_string() {
     //DO NOT free the otas since it carries the config pieces
 }
 
-void init_xlat() {
+void init_gpio() {
     gpio_config_t io_conf = {}; //zero-initialize the config structure
     io_conf.intr_type = GPIO_INTR_DISABLE; //disable interrupt
     io_conf.mode = GPIO_MODE_OUTPUT; //set as output mode
-    io_conf.pin_bit_mask = 1ULL<<XLAT_PIN; //will expose serial buffered values to the LEDs when high
-    gpio_config(&io_conf); //configure GPIO with the given settings
-    gpio_set_level(XLAT_PIN,0); //xlat must not be set until ISR
-}
-
-static i2s_chan_handle_t   tx_chan;    //I2S tx channel handler
-#define BUFF_SIZE 4096  //maximum allowed dma_buff size at a time
-void send_screen() {
-    uint64_t delta, start_time=esp_timer_get_time();
-    size_t bytes_loaded;
-    uint16_t dma_buf[BUFF_SIZE];
-    //dma_buf[0]=0x8002; dma_buf[1]=0x4004; dma_buf[2]=0x4008; dma_buf[3]=0x4001; //test pattern
-    dma_buf[0]=0xAAAA; dma_buf[1]=0x0000; dma_buf[2]=0xFFFF; dma_buf[3]=0x0000; //test pattern
-    dma_buf[4]=0xFFFF; dma_buf[5]=0x0000; dma_buf[6]=0xFFFF; dma_buf[7]=0x0000; //test pattern
-    dma_buf[8]=0xFFFF; dma_buf[9]=0x0000; dma_buf[10]=0xFFFF; dma_buf[11]=0x0000; //test pattern
-    dma_buf[12]=0xFFFF; dma_buf[13]=0x0000; dma_buf[14]=0xFFFF; dma_buf[15]=0x5555; //test pattern
-    UDPLUS("SND ");
-    //transmit the dma_buf once
-    if (i2s_channel_preload_data(tx_chan, dma_buf, 16*sizeof(uint16_t), &bytes_loaded)!=ESP_OK) UDPLUS("i2s_channel_preload_data failed\n");
-    UDPLUS("preloaded %d bytes ",bytes_loaded); //actual start of SINT after SCLK is random delayed up to 100 micro seconds
-    if (i2s_channel_enable(tx_chan)!=ESP_OK) UDPLUS("i2s_channel_enable failed\n"); //Enable the TX channel
-    //vTaskDelay(20/portTICK_PERIOD_MS); //message is 512microseconds
-    while ((delta=((uint64_t) esp_timer_get_time() - start_time)) <= 4000) {} //timing is unreliable and 1400 results in 550 microseconds of SCLK
-    if (i2s_channel_disable(tx_chan)!=ESP_OK) UDPLUS("i2s_channel_disable failed\n"); //Disable the TX channel
-    UDPLUS("delta %lld\n", delta);
-}
-
-static IRAM_ATTR bool i2s_on_sent_callback(i2s_chan_handle_t handle, i2s_event_data_t *event, void *user_ctx)
-{
-    // handle TX complete event ...
-    gpio_set_level(XLAT_PIN,1);
+    io_conf.pin_bit_mask = ((1ULL<<BLNK_PIN)|(1ULL<<XLAT_PIN)|(1ULL<<SCLK_PIN)|(1ULL<<SINT_PIN)|(1ULL<<SINB_PIN));
+    gpio_config(&io_conf); //configure GPIOs with the given settings
+    gpio_set_level(BLNK_PIN,0);
     gpio_set_level(XLAT_PIN,0);
-    return false;
+    gpio_set_level(SCLK_PIN,0);
+    gpio_set_level(SINT_PIN,0);
+    gpio_set_level(SINB_PIN,0);
 }
 
-i2s_event_callbacks_t cbs = {
-    .on_recv = NULL,
-    .on_recv_q_ovf = NULL,
-    .on_sent = i2s_on_sent_callback,
-    .on_send_q_ovf = NULL,
-};
-
-void i2s_init() { //note that databits idle voltage is zero and cannot be flipped
-    i2s_chan_info_t chan_info;
-    i2s_chan_config_t tx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_AUTO, I2S_ROLE_MASTER);
-    UDPLUS("interrupt level=%d ",tx_chan_cfg.intr_priority);
-    i2s_std_config_t tx_std_cfg = {
-        .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(4000), //results in 128kHz bitclock
-        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
-        .gpio_cfg = {.mclk=I2S_GPIO_UNUSED, .bclk=SCLK_PIN, .ws=I2S_GPIO_UNUSED, .din=I2S_GPIO_UNUSED, .dout=SINT_PIN},
-    };
-    if (i2s_new_channel(&tx_chan_cfg, &tx_chan, NULL)!=ESP_OK) UDPLUS("i2s_new_channel failed\n"); //no Rx
-    if (i2s_channel_init_std_mode(tx_chan, &tx_std_cfg)!=ESP_OK) UDPLUS("i2s_channel_init_std_mode failed\n");
-    i2s_channel_get_info(tx_chan, &chan_info);
-    UDPLUS("total_dma_buf_size=%ld\n", chan_info.total_dma_buf_size);
-    i2s_channel_register_event_callback(tx_chan, &cbs, NULL);
-}
 
 void main_task(void *arg) {
     udplog_init(3);
@@ -314,10 +347,10 @@ void main_task(void *arg) {
 
     mqtt_app_start();
 
-    i2s_init();
+    init_gpio();
     while (true) {
-        send_screen();
-        vTaskDelay(2000/portTICK_PERIOD_MS);
+        show_it_once();
+        //vTaskDelay(2000/portTICK_PERIOD_MS);
     }
 }    
 
