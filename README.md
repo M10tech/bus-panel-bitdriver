@@ -14,10 +14,16 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.1.2 using an assembly delay
+- reduces time per column to 46 microseconds
+- with the four level brightness, faster seems difficult
+- the receiving hardware seems to hold up with the speed
+
 ### 0.1.1 improved brightness levels
 - much clearer level differences
 - experiments with alternative delay methods
 - for now, 1 microsecond with esp_timer_get_time() loop works OK
+- forgot to put IDF version to 0.1.1
 
 ### 0.1.0 four level pwm per LED bitbanging
 - with artificial delay of 10 microseconds works well
