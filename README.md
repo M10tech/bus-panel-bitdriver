@@ -14,6 +14,13 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.1.3 removed heavy glitches and better contrast
+- the infinite while-loop did not allow the taskWatchDog to be fed, causing a TWD-report on CPU-1
+- disabled the TWD with CONFIG_ESP_TASK_WDT_EN=n in sdkconfig.defaults
+- protected the XLAT pin with taskENTER_CRITICAL (might not be needed...)
+- better contrast at the cost of 200 micros/column refreshrate
+- additional test-patterns
+
 ### 0.1.2 using an assembly delay
 - reduces time per column to 46 microseconds
 - with the four level brightness, faster seems difficult

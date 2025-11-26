@@ -25,10 +25,27 @@
 // You must set version.txt file to match github version tag x.y.z for LCM4ESP32 to work
 
 #define COLUMNS   28 //number of colums on the panel
-uint32_t screen[COLUMNS] = {0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
-                            0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
-                            0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
-                            0xffffffff,0xaaaaaaaa,0x55555555,0x00000000};
+// uint32_t screen[COLUMNS] = {0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,
+//                             0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
+//                             0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,
+//                             0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
+//                             0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,
+//                             0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
+//                             0xffffffff,0xaaaaaaaa,0x55555555,0x00000000};
+uint32_t screen[COLUMNS] = {0xffffffff,0xffffffff,0xffffffff,0x00000000,
+                            0x00000000,0xaaaaaaaa,0xaaaaaaaa,0xaaaaaaaa,
+                            0xaaaaaaaa,0xaaaaaaaa,0x00000000,0x00000000,
+                            0x55555555,0x55555555,0x55555555,0x55555555,
+                            0x00000000,0x00000000,0xaaaaaaaa,0xaaaaaaaa,
+                            0xaaaaaaaa,0xaaaaaaaa,0xaaaaaaaa,0x00000000,
+                            0x00000000,0xffffffff,0xffffffff,0xffffffff};
+// uint32_t screen[COLUMNS] = {0x55555555,0x55555555,0x55555555,0x55555555,
+//                             0x55555555,0x55555555,0x55555555,0x55555555,
+//                             0x55555555,0x55555555,0x55555555,0x55555555,
+//                             0x55555555,0x55555555,0x55555555,0x55555555,
+//                             0x55555555,0x55555555,0x55555555,0x55555555,
+//                             0x55555555,0x55555555,0x55555555,0x55555555,
+//                             0x55555555,0x55555555,0x55555555,0x55555555};
 
 #define BLNK_PIN  GPIO_NUM_12
 #define XLAT_PIN  GPIO_NUM_14
@@ -36,9 +53,9 @@ uint32_t screen[COLUMNS] = {0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,0xffff00
 #define SINT_PIN  GPIO_NUM_26
 #define SINB_PIN  GPIO_NUM_25
 
-// gpio_set_level(SINT_PIN,((data&b    )== b    )?1:0); //trigger bit TOP
-// gpio_set_level(SCLK_PIN,ARMIT);                      //make clock more symmetrical
-// gpio_set_level(SINB_PIN,((data&b<<16)== b<<16)?1:0); //trigger bit BOTTOM
+// gpio_set_level(SCLK_PIN,ARMIT);                      //prepare rise by going to low
+// gpio_set_level(SINT_PIN,((data&b    )== b    )?1:0); //trigger SIN bit in the TOP
+// gpio_set_level(SINB_PIN,((data&b<<16)== b<<16)?1:0); //trigger SIN bit in the BOTTOM
 // gpio_set_level(SCLK_PIN,SHIFT);                      //shift on rising edge
 
 #define ARMIT 0 //to arm the clock, we set it low
@@ -55,27 +72,26 @@ void delay(unsigned ns) {
         : : "r"(ns)
     );
 }
-#define ONALLBITS(b,d) do { gpio_set_level(SINT_PIN,((screen[col]&b    )== b    )?1:0); \
-                            gpio_set_level(SCLK_PIN,ARMIT ); \
-                            DELAYIT(d); \
+#define ONALLBITS(b,d) do { gpio_set_level(SCLK_PIN,ARMIT ); \
+                            gpio_set_level(SINT_PIN,((screen[col]&b    )== b    )?1:0); \
                             gpio_set_level(SINB_PIN,((screen[col]&b<<16)== b<<16)?1:0); \
                             DELAYIT(d); \
                             gpio_set_level(SCLK_PIN,SHIFT); \
-                            DELAYIT(d); \
-                          } while(0) //check for a full match to set the SIN bits
-#define ONSOMEBIT(b,d) do { gpio_set_level(SINT_PIN,(screen[col]&b    )?1:0); \
-                            gpio_set_level(SCLK_PIN,ARMIT ); \
-                            DELAYIT(d); \
+                            DELAYIT(DELAY); \
+                          } while(0) //check for a full match to set the SIN bit
+#define ONSOMEBIT(b,d) do { gpio_set_level(SCLK_PIN,ARMIT ); \
+                            gpio_set_level(SINT_PIN,(screen[col]&b    )?1:0); \
                             gpio_set_level(SINB_PIN,(screen[col]&b<<16)?1:0); \
                             DELAYIT(d); \
                             gpio_set_level(SCLK_PIN,SHIFT); \
-                            DELAYIT(d); \
-                          } while(0) //check for some match to set the SIN bits
+                            DELAYIT(DELAY); \
+                          } while(0) //check for some match to set the SIN bit
 
-#define LOAD 0 //XLAT low  means to not latch the new values to the LEDS
-#define SHOW 1 //XLAT high means to     latch the new values to the LEDS
+#define LOAD 0 //XLAT low  means to hide the new values to the LEDs and keep the old values on the LEDs
+#define SHOW 1 //XLAT high means to pass the new values to the LEDs
+portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 void show_it_once(void) {
-    //uint64_t start_time;
+    //uint64_t start_time; //used in the DELAYIT macro based on esp_timer_get_time()
     int col;
     gpio_set_level(XLAT_PIN,LOAD);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11
@@ -88,35 +104,41 @@ void show_it_once(void) {
         ONALLBITS(0x00003000,DELAY);
         ONALLBITS(0x0000c000,DELAY);
     }
+	taskENTER_CRITICAL(&myMutex);
     gpio_set_level(XLAT_PIN,SHOW);
     DELAYIT(DELAY);
     gpio_set_level(XLAT_PIN,LOAD);
+	taskEXIT_CRITICAL(&myMutex);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11 or 0b10
-        ONALLBITS(0x00000002,DELAY*4);
-        ONALLBITS(0x0000000a,DELAY*4);
-        ONALLBITS(0x00000020,DELAY*4);
-        ONALLBITS(0x000000a0,DELAY*4);
-        ONALLBITS(0x00000200,DELAY*4);
-        ONALLBITS(0x00000a00,DELAY*4);
-        ONALLBITS(0x00002000,DELAY*4);
-        ONALLBITS(0x0000a000,DELAY*4);
+        ONALLBITS(0x00000002,DELAY*400);
+        ONALLBITS(0x0000000a,DELAY*400);
+        ONALLBITS(0x00000020,DELAY*400);
+        ONALLBITS(0x000000a0,DELAY*400);
+        ONALLBITS(0x00000200,DELAY*400);
+        ONALLBITS(0x00000a00,DELAY*400);
+        ONALLBITS(0x00002000,DELAY*400);
+        ONALLBITS(0x0000a000,DELAY*400);
     }
+	taskENTER_CRITICAL(&myMutex);
     gpio_set_level(XLAT_PIN,SHOW);
     DELAYIT(DELAY);
     gpio_set_level(XLAT_PIN,LOAD);
+	taskEXIT_CRITICAL(&myMutex);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11, 0b10 or 0b01
-        ONSOMEBIT(0x00000003,DELAY*2);
-        ONSOMEBIT(0x0000000c,DELAY*2);
-        ONSOMEBIT(0x00000030,DELAY*2);
-        ONSOMEBIT(0x000000c0,DELAY*2);
-        ONSOMEBIT(0x00000300,DELAY*2);
-        ONSOMEBIT(0x00000c00,DELAY*2);
-        ONSOMEBIT(0x00003000,DELAY*2);
-        ONSOMEBIT(0x0000c000,DELAY*2);
+        ONSOMEBIT(0x00000003,DELAY*120);
+        ONSOMEBIT(0x0000000c,DELAY*120);
+        ONSOMEBIT(0x00000030,DELAY*120);
+        ONSOMEBIT(0x000000c0,DELAY*120);
+        ONSOMEBIT(0x00000300,DELAY*120);
+        ONSOMEBIT(0x00000c00,DELAY*120);
+        ONSOMEBIT(0x00003000,DELAY*120);
+        ONSOMEBIT(0x0000c000,DELAY*120);
     }
+	taskENTER_CRITICAL(&myMutex);
     gpio_set_level(XLAT_PIN,SHOW);
     DELAYIT(DELAY);
     gpio_set_level(XLAT_PIN,LOAD);
+	taskEXIT_CRITICAL(&myMutex);
 }
 
 
@@ -355,12 +377,12 @@ void main_task(void *arg) {
 
     mqtt_app_start();
 
-    vTaskDelay(100);
+    vTaskDelay(50);
     uint64_t delta,start_time;
     start_time=esp_timer_get_time();
-    DELAYIT(200);
+    DELAYIT(1000);
     delta=esp_timer_get_time()-start_time;
-    UDPLUS("200 delays: %llu microseconds\n",delta);
+    UDPLUS("1000 delays: %llu microseconds\n",delta);
     start_time=esp_timer_get_time();
     DELAYIT(100000);
     delta=esp_timer_get_time()-start_time;
