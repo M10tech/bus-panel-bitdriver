@@ -62,16 +62,13 @@ uint32_t screen[COLUMNS] = {0xffffffff,0xffffffff,0xffffffff,0x00000000,
 #define SHIFT 1 //to shift the data in, we set the clock high for a rising edge
 #define DELAY 1 //asm_loops or microseconds
 
-//#define DELAYIT(t)     do { vTaskDelay(t);} while(0)
-//#define DELAYIT(t)     do { start_time=esp_timer_get_time();while(((uint64_t)esp_timer_get_time()-start_time)<t){} } while(0) //takes 10750 microseconds per DELAYIT(10000)
-#define DELAYIT(t) delay(t) //takes about 40ns per loop at DELAYIT(200000) but then there is overhead...
-void delay(unsigned ns) {
-    __asm__ __volatile__ (
-        "start:  addi.n  %0, %0, -1\n"
-        "        bnez.n    %0, start"
-        : : "r"(ns)
-    );
-}
+//#define DELAYIT(t)   do { vTaskDelay(t);} while(0)
+//#define DELAYIT(t)   do { start_time=esp_timer_get_time();while(((uint64_t)esp_timer_get_time()-start_time)<t){} } while(0) //takes 10750 microseconds per DELAYIT(10000)
+#define DELAYIT(t)     do { int delayt=t; \
+                            __asm__ __volatile__ (  "start%=:   addi.n  %0, %0, -1\n"  \
+                                                    "           bnez.n    %0, start%=" \
+                                                    : "=r"(delayt):"0"(delayt)      ); \
+                          } while(0) //inline assembly loop is slighty faster than function version
 #define ONALLBITS(b,d) do { gpio_set_level(SCLK_PIN,ARMIT ); \
                             gpio_set_level(SINT_PIN,((screen[col]&b    )== b    )?1:0); \
                             gpio_set_level(SINB_PIN,((screen[col]&b<<16)== b<<16)?1:0); \

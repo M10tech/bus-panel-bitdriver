@@ -14,6 +14,11 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.1.4 inline assembly delay function is slighty faster
+- does not use a function but is inline
+- use start%= to allow use in macro
+- reduces refreshrate by 15% 170 micros/column
+
 ### 0.1.3 removed heavy glitches and better contrast
 - the infinite while-loop did not allow the taskWatchDog to be fed, causing a TWD-report on CPU-1
 - disabled the TWD with CONFIG_ESP_TASK_WDT_EN=n in sdkconfig.defaults
