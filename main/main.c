@@ -21,6 +21,7 @@
 #include <cJSON.h>
 #include "esp_timer.h"
 #include "driver/gpio.h"
+#include "driver/ledc.h"
 
 // You must set version.txt file to match github version tag x.y.z for LCM4ESP32 to work
 
@@ -87,7 +88,7 @@ uint32_t screen[COLUMNS] = {0xffffffff,0xffffffff,0xffffffff,0x00000000,
 #define LOAD 0 //XLAT low  means to hide the new values to the LEDs and keep the old values on the LEDs
 #define SHOW 1 //XLAT high means to pass the new values to the LEDs
 portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
-void show_it_once(void) {
+static void show_it_once(void) {
     //uint64_t start_time; //used in the DELAYIT macro based on esp_timer_get_time()
     int col;
     gpio_set_level(XLAT_PIN,LOAD);
@@ -122,14 +123,14 @@ void show_it_once(void) {
     gpio_set_level(XLAT_PIN,LOAD);
 	taskEXIT_CRITICAL(&myMutex);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11, 0b10 or 0b01
-        ONSOMEBIT(0x00000003,DELAY*120);
-        ONSOMEBIT(0x0000000c,DELAY*120);
-        ONSOMEBIT(0x00000030,DELAY*120);
-        ONSOMEBIT(0x000000c0,DELAY*120);
-        ONSOMEBIT(0x00000300,DELAY*120);
-        ONSOMEBIT(0x00000c00,DELAY*120);
-        ONSOMEBIT(0x00003000,DELAY*120);
-        ONSOMEBIT(0x0000c000,DELAY*120);
+        ONSOMEBIT(0x00000003,DELAY*100);
+        ONSOMEBIT(0x0000000c,DELAY*100);
+        ONSOMEBIT(0x00000030,DELAY*100);
+        ONSOMEBIT(0x000000c0,DELAY*100);
+        ONSOMEBIT(0x00000300,DELAY*100);
+        ONSOMEBIT(0x00000c00,DELAY*100);
+        ONSOMEBIT(0x00003000,DELAY*100);
+        ONSOMEBIT(0x0000c000,DELAY*100);
     }
 	taskENTER_CRITICAL(&myMutex);
     gpio_set_level(XLAT_PIN,SHOW);
@@ -223,12 +224,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             log_error_if_nonzero("reported from esp-tls", event->error_handle->esp_tls_last_esp_err);
             log_error_if_nonzero("reported from tls stack", event->error_handle->esp_tls_stack_err);
             log_error_if_nonzero("captured as transport's socket errno",  event->error_handle->esp_transport_sock_errno);
-            UDPLUS("Last errno string (%s)", strerror(event->error_handle->esp_transport_sock_errno));
+            UDPLUS("Last errno string (%s)\n", strerror(event->error_handle->esp_transport_sock_errno));
 
         }
         break;
     default:
-        UDPLUS("Other event id:%d", event->event_id);
+        UDPLUS("Other event id:%d\n", event->event_id);
         break;
     }
 }
@@ -287,7 +288,7 @@ static void ping_timeout(esp_ping_handle_t hdl, void *args) {
     wdt_hal_feed(&rtc_wdt_ctx);
     wdt_hal_write_protect_enable(&rtc_wdt_ctx);
 }
-void ping_task(void *argv) {
+static void ping_task(void *argv) {
     ip_addr_t target_addr;
     ipaddr_aton(pinger_target,&target_addr);
     esp_ping_handle_t ping;
@@ -313,7 +314,7 @@ void ping_task(void *argv) {
     esp_restart(); //TODO: disable GPIO outputs
 }
 
-void time_task(void *argv) {
+static void time_task(void *argv) {
     setenv("TZ", "CET-1CEST,M3.5.0/2,M10.5.0/3", 1); tzset();
     esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
     esp_netif_sntp_init(&config);
@@ -346,19 +347,44 @@ static void ota_string() {
     //DO NOT free the otas since it carries the config pieces
 }
 
-void init_gpio() {
+static void init_gpio() {
     gpio_config_t io_conf = {}; //zero-initialize the config structure
     io_conf.intr_type = GPIO_INTR_DISABLE; //disable interrupt
     io_conf.mode = GPIO_MODE_OUTPUT; //set as output mode
-    io_conf.pin_bit_mask = ((1ULL<<BLNK_PIN)|(1ULL<<XLAT_PIN)|(1ULL<<SCLK_PIN)|(1ULL<<SINT_PIN)|(1ULL<<SINB_PIN));
+    io_conf.pin_bit_mask = ((1ULL<<XLAT_PIN)|(1ULL<<SCLK_PIN)|(1ULL<<SINT_PIN)|(1ULL<<SINB_PIN));
     gpio_config(&io_conf); //configure GPIOs with the given settings
-    gpio_set_level(BLNK_PIN,0);
     gpio_set_level(XLAT_PIN,0);
     gpio_set_level(SCLK_PIN,0);
     gpio_set_level(SINT_PIN,0);
     gpio_set_level(SINB_PIN,0);
 }
 
+#define LEDC_CHANNEL    LEDC_CHANNEL_0
+#define LEDC_MODE       LEDC_LOW_SPEED_MODE
+#define LEDC_TIMER      LEDC_TIMER_0
+static void ledc_init(void) {
+    // Prepare and then apply the LEDC PWM timer configuration
+    ledc_timer_config_t ledc_timer = {
+        .speed_mode       = LEDC_MODE,
+        .duty_resolution  = LEDC_TIMER_10_BIT, // Set duty resolution to 10 bits, values 0-1024
+        .timer_num        = LEDC_TIMER,
+        .freq_hz          = 10000,  // Set output frequency at 10 kHz
+        .clk_cfg          = LEDC_AUTO_CLK
+    };
+    ledc_timer_config(&ledc_timer);
+
+    // Prepare and then apply the LEDC PWM channel configuration
+    ledc_channel_config_t ledc_channel = {
+        .speed_mode     = LEDC_MODE,
+        .channel        = LEDC_CHANNEL,
+        .timer_sel      = LEDC_TIMER,
+        .intr_type      = LEDC_INTR_DISABLE,
+        .gpio_num       = BLNK_PIN,
+        .duty           = 0, // Set duty to 0%
+        .hpoint         = 0
+    };
+    ledc_channel_config(&ledc_channel);
+}
 
 void main_task(void *arg) {
     udplog_init(3);
@@ -389,11 +415,16 @@ void main_task(void *arg) {
     delta=esp_timer_get_time()-start_time;
     UDPLUS("200000 delays: %llu microseconds\n",delta);
     init_gpio();
+    uint32_t dutycycle=10;
+    ledc_init();
     while (true) {
+        ledc_set_duty(   LEDC_MODE,LEDC_CHANNEL,dutycycle);
+        ledc_update_duty(LEDC_MODE,LEDC_CHANNEL);
         start_time=esp_timer_get_time();
         for (int i=0; i<1000; i++) show_it_once();
         delta=esp_timer_get_time()-start_time;
-        UDPLUS("1000 refresh: %llu microseconds\n",delta);
+        dutycycle*=1.4; if (dutycycle>1024) dutycycle=14;
+        UDPLUS("1000 refresh: %llu microseconds, dutycycle=%ld\n",delta,dutycycle);
     }
 }    
 

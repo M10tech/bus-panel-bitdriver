@@ -14,6 +14,15 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.2.0 drive BLANK lines at 10kHz with ledc diriver
+- intensity varies at an exponential scale
+- this signal is somehow dirty, needed to add a 220pF capacitor to the 5V side of BLNK_PIN  
+  might not be needed in a not experimental setup
+- ESP32 does not boot anymore when panel already powered before...  
+  rst:0x10 (RTCWDT_RTC_RESET),boot:0x33 (SPI_FAST_FLASH_BOOT)
+- adjusted 0b10 brightness level to be more 'in the middle'
+- made functions static (best practice)
+
 ### 0.1.4 inline assembly delay function is slighty faster
 - does not use a function but is inline
 - use start%= to allow use in macro
