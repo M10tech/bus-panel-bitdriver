@@ -22,6 +22,7 @@
 #include "esp_timer.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "driver/pulse_cnt.h"
 
 // You must set version.txt file to match github version tag x.y.z for LCM4ESP32 to work
 
@@ -48,6 +49,7 @@ uint32_t screen[COLUMNS] = {0xffffffff,0xffffffff,0xffffffff,0x00000000,
 //                             0x55555555,0x55555555,0x55555555,0x55555555,
 //                             0x55555555,0x55555555,0x55555555,0x55555555};
 
+#define LGHT_PIN  GPIO_NUM_13
 #define BLNK_PIN  GPIO_NUM_12
 #define XLAT_PIN  GPIO_NUM_14
 #define SCLK_PIN  GPIO_NUM_27
@@ -386,6 +388,48 @@ static void ledc_init(void) {
     ledc_channel_config(&ledc_channel);
 }
 
+uint32_t overflow_counter=0;
+static bool pcnt_on_overflow(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx) {
+    uint32_t *overflow_counter=(uint32_t*)user_ctx;
+    (*overflow_counter)++; //don't forget the ()
+    return pdFALSE;
+}
+
+void pcnt_task(void *arg) {
+    while(true) {
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+        //TODO: convert overflow_counter to duty_cycle
+        UDPLUS("overflow_counter=%ld\n",overflow_counter);
+        overflow_counter=0;
+    }
+}
+
+#define HIGH_LIMIT 100 //value is signed 16 bit so 32767 max
+void pcnt_init(void) {
+    pcnt_unit_config_t unit_config = {
+        .high_limit = HIGH_LIMIT,
+        .low_limit = -1, //the only way is up
+    };
+    pcnt_unit_handle_t pcnt_unit = NULL;
+    pcnt_new_unit(&unit_config, &pcnt_unit);
+    pcnt_chan_config_t chan_config = {
+        .edge_gpio_num = LGHT_PIN,
+        .level_gpio_num = -1,
+        .flags.virt_level_io_level = 0
+    };
+    pcnt_channel_handle_t pcnt_chan = NULL;
+    pcnt_new_channel(pcnt_unit, &chan_config, &pcnt_chan);
+    pcnt_channel_set_edge_action(pcnt_chan, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_HOLD);
+    pcnt_channel_set_level_action(pcnt_chan, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_KEEP);
+    pcnt_unit_add_watch_point(pcnt_unit, HIGH_LIMIT);
+    pcnt_event_callbacks_t cbs = {.on_reach = pcnt_on_overflow,};
+    pcnt_unit_register_event_callbacks(pcnt_unit, &cbs, &overflow_counter);
+    pcnt_unit_enable(pcnt_unit);
+    pcnt_unit_clear_count(pcnt_unit);
+    pcnt_unit_start(pcnt_unit);
+    xTaskCreate(pcnt_task,"pcntT",2048, NULL, 2, NULL); //if prio is 1 then does hardly get a chance to find a gap in the main loop
+}
+
 void main_task(void *arg) {
     udplog_init(3);
     vTaskDelay(300); //Allow Wi-Fi to connect
@@ -415,6 +459,7 @@ void main_task(void *arg) {
     delta=esp_timer_get_time()-start_time;
     UDPLUS("200000 delays: %llu microseconds\n",delta);
     init_gpio();
+    pcnt_init();
     uint32_t dutycycle=10;
     ledc_init();
     while (true) {

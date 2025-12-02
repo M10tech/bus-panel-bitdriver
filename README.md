@@ -14,7 +14,11 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
-### 0.2.0 drive BLANK lines at 10kHz with ledc diriver
+### 0.3.0 read the brightness sensor with pcnt driver
+- block wave with frequencies from a few Hz to 1MHz at full sunshine
+- fine tuning of reporting cycle and interrupt rate still pending
+
+### 0.2.0 drive BLANK lines at 10kHz with ledc driver
 - intensity varies at an exponential scale
 - this signal is somehow dirty, needed to add a 220pF capacitor to the 5V side of BLNK_PIN  
   might not be needed in a not experimental setup
