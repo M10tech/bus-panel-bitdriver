@@ -14,6 +14,12 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.3.1 adjust blank lines based on brightness sensor
+- take the median of 11 samples at 1 sample per second
+- adjustment in 6 seconds for stable changes, spikes are ignored
+- take the square root for the  PWM % of BLANK
+- clip between 3% and 100%
+
 ### 0.3.0 read the brightness sensor with pcnt driver
 - block wave with frequencies from a few Hz to 1MHz at full sunshine
 - fine tuning of reporting cycle and interrupt rate still pending

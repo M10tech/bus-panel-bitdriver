@@ -24,6 +24,14 @@
 #include "driver/ledc.h"
 #include "driver/pulse_cnt.h"
 
+//#include <math.h>
+double sqroot(double square){ //Newton Raphson
+    if (square<=0) return 0;
+    double root=square/3;
+    for (int i=0; i<16; i++) root=(root+square/root)/2;
+    return root;
+}
+
 // You must set version.txt file to match github version tag x.y.z for LCM4ESP32 to work
 
 #define COLUMNS   28 //number of colums on the panel
@@ -388,20 +396,47 @@ static void ledc_init(void) {
     ledc_channel_config(&ledc_channel);
 }
 
+uint32_t dutycycle=0;
 uint32_t overflow_counter=0;
+#define REACT 5
+#define N (2*REACT+1) //samples in the ringbuffer and seconds of the sliding window
+uint32_t ring[N]={0,0,0,0,0,0,0,0,0,0,0}; //TODO: initialize dynamicly if N changes
+uint32_t sort[N]={0,0,0,0,0,0,0,0,0,0,0};
+void pcnt_task(void *arg) {
+    uint32_t old,new=0;
+    int i,in,io,idx=0;
+    while(true) {
+        ledc_set_duty(   LEDC_MODE,LEDC_CHANNEL,dutycycle);
+        ledc_update_duty(LEDC_MODE,LEDC_CHANNEL);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+        new=overflow_counter; //TODO: divide by passed time
+        old=ring[idx]; ring[idx]=new;
+        if (new<old) {  //search where to insert new measurement into sorted array
+            i=0;   while (new>sort[i]) {i++;} in=i;
+                   while (old>sort[i]) {i++;} io=i;
+            for (i=io;i>in;i--) sort[i]=sort[i-1];
+            sort[i]=new;
+        }
+        // if (new==old) do_nothing;
+        if (new>old) {
+            i=N-1; while (new<sort[i]) {i--;} in=i;
+                   while (old<sort[i]) {i--;} io=i;
+            for (i=io;i<in;i++) sort[i]=sort[i+1];
+            sort[i]=new;
+        }
+        idx++; if(idx==N) idx=0;
+        //for (i=0;i<N;i++) UDPLUS("%ld ",sort[i]); UDPLUS("\n");
+        //convert overflow_counter to duty_cycle
+        dutycycle=sqroot(sort[REACT])*10; if(dutycycle<30) dutycycle=30; if(dutycycle>1023) dutycycle=1024;
+        UDPLUS("Median: %ld   now: %ld, dutycycle=%ld\n", sort[REACT], new, dutycycle);
+        overflow_counter=0;
+    }
+}
+
 static bool pcnt_on_overflow(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t *edata, void *user_ctx) {
     uint32_t *overflow_counter=(uint32_t*)user_ctx;
     (*overflow_counter)++; //don't forget the ()
     return pdFALSE;
-}
-
-void pcnt_task(void *arg) {
-    while(true) {
-        vTaskDelay(1000/portTICK_PERIOD_MS);
-        //TODO: convert overflow_counter to duty_cycle
-        UDPLUS("overflow_counter=%ld\n",overflow_counter);
-        overflow_counter=0;
-    }
 }
 
 #define HIGH_LIMIT 100 //value is signed 16 bit so 32767 max
@@ -445,31 +480,15 @@ void main_task(void *arg) {
     mqtt_app_start();
 
     vTaskDelay(50);
-    uint64_t delta,start_time;
-    start_time=esp_timer_get_time();
-    DELAYIT(1000);
-    delta=esp_timer_get_time()-start_time;
-    UDPLUS("1000 delays: %llu microseconds\n",delta);
-    start_time=esp_timer_get_time();
-    DELAYIT(100000);
-    delta=esp_timer_get_time()-start_time;
-    UDPLUS("100000 delays: %llu microseconds\n",delta);
-    start_time=esp_timer_get_time();
-    DELAYIT(200000);
-    delta=esp_timer_get_time()-start_time;
-    UDPLUS("200000 delays: %llu microseconds\n",delta);
     init_gpio();
-    pcnt_init();
-    uint32_t dutycycle=10;
     ledc_init();
+    pcnt_init();
+    uint64_t delta,start_time;
     while (true) {
-        ledc_set_duty(   LEDC_MODE,LEDC_CHANNEL,dutycycle);
-        ledc_update_duty(LEDC_MODE,LEDC_CHANNEL);
         start_time=esp_timer_get_time();
         for (int i=0; i<1000; i++) show_it_once();
         delta=esp_timer_get_time()-start_time;
-        dutycycle*=1.4; if (dutycycle>1024) dutycycle=14;
-        UDPLUS("1000 refresh: %llu microseconds, dutycycle=%ld\n",delta,dutycycle);
+        UDPLUS("1000 refresh: %llu microseconds\n",delta);
     }
 }    
 
