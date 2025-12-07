@@ -14,6 +14,11 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.4.0 moving pictures
+- make an array of frames that will be played in sequence
+- reduced blanking PWM to 3kHz allows lower minimum brightness
+- be aware of moire effect between individual refresh rate and blanking
+
 ### 0.3.1 adjust blank lines based on brightness sensor
 - take the median of 11 samples at 1 sample per second
 - adjustment in 6 seconds for stable changes, spikes are ignored

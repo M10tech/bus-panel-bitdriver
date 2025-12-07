@@ -34,6 +34,7 @@ double sqroot(double square){ //Newton Raphson
 
 // You must set version.txt file to match github version tag x.y.z for LCM4ESP32 to work
 
+#define FRAMES    16 //number of frames on the panel
 #define COLUMNS   28 //number of colums on the panel
 // uint32_t screen[COLUMNS] = {0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,
 //                             0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
@@ -42,20 +43,152 @@ double sqroot(double square){ //Newton Raphson
 //                             0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,
 //                             0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
 //                             0xffffffff,0xaaaaaaaa,0x55555555,0x00000000};
-uint32_t screen[COLUMNS] = {0xffffffff,0xffffffff,0xffffffff,0x00000000,
-                            0x00000000,0xaaaaaaaa,0xaaaaaaaa,0xaaaaaaaa,
-                            0xaaaaaaaa,0xaaaaaaaa,0x00000000,0x00000000,
-                            0x55555555,0x55555555,0x55555555,0x55555555,
-                            0x00000000,0x00000000,0xaaaaaaaa,0xaaaaaaaa,
-                            0xaaaaaaaa,0xaaaaaaaa,0xaaaaaaaa,0x00000000,
-                            0x00000000,0xffffffff,0xffffffff,0xffffffff};
-// uint32_t screen[COLUMNS] = {0x55555555,0x55555555,0x55555555,0x55555555,
+// uint32_t screen[COLUMNS] = {0xffffffff,0xffffffff,0xffffffff,0x00000000,
+//                             0x00000000,0xaaaaaaaa,0xaaaaaaaa,0xaaaaaaaa,
+//                             0xaaaaaaaa,0xaaaaaaaa,0x00000000,0x00000000,
 //                             0x55555555,0x55555555,0x55555555,0x55555555,
-//                             0x55555555,0x55555555,0x55555555,0x55555555,
-//                             0x55555555,0x55555555,0x55555555,0x55555555,
-//                             0x55555555,0x55555555,0x55555555,0x55555555,
-//                             0x55555555,0x55555555,0x55555555,0x55555555,
-//                             0x55555555,0x55555555,0x55555555,0x55555555};
+//                             0x00000000,0x00000000,0xaaaaaaaa,0xaaaaaaaa,
+//                             0xaaaaaaaa,0xaaaaaaaa,0xaaaaaaaa,0x00000000,
+//                             0x00000000,0xffffffff,0xffffffff,0xffffffff};
+// uint32_t screen[COLUMNS] = {
+//                             0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
+//                             0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
+//                             0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
+//                             0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
+//                             0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
+//                             0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
+//                             0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
+//                             };
+uint32_t screen[FRAMES][COLUMNS] = {
+                            {
+                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
+                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
+                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
+                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
+                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
+                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
+                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
+                            },{
+                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
+                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
+                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
+                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
+                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
+                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
+                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
+                            },{
+                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
+                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
+                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
+                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
+                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
+                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
+                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
+                            },{
+                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
+                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
+                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
+                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
+                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
+                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
+                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
+                            },{
+                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
+                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
+                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
+                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
+                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
+                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
+                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
+                            },{
+                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
+                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
+                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
+                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
+                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
+                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
+                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
+                            },{
+                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
+                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
+                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
+                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
+                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
+                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
+                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
+                            },{
+                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
+                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
+                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
+                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
+                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
+                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
+                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
+                            },{
+                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
+                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
+                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
+                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
+                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
+                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
+                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
+                            },{
+                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
+                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
+                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
+                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
+                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
+                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
+                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
+                            },{
+                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
+                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
+                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
+                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
+                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
+                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
+                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
+                            },{
+                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
+                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
+                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
+                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
+                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
+                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
+                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
+                            },{
+                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
+                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
+                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
+                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
+                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
+                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
+                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
+                            },{
+                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
+                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
+                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
+                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
+                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
+                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
+                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
+                            },{
+                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
+                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
+                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
+                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
+                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
+                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
+                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
+                            },{
+                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
+                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
+                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
+                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
+                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
+                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
+                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
+                            }};
 
 #define LGHT_PIN  GPIO_NUM_13
 #define BLNK_PIN  GPIO_NUM_12
@@ -80,37 +213,37 @@ uint32_t screen[COLUMNS] = {0xffffffff,0xffffffff,0xffffffff,0x00000000,
                                                     "           bnez.n    %0, start%=" \
                                                     : "=r"(delayt):"0"(delayt)      ); \
                           } while(0) //inline assembly loop is slighty faster than function version
-#define ONALLBITS(b,d) do { gpio_set_level(SCLK_PIN,ARMIT ); \
-                            gpio_set_level(SINT_PIN,((screen[col]&b    )== b    )?1:0); \
-                            gpio_set_level(SINB_PIN,((screen[col]&b<<16)== b<<16)?1:0); \
+#define ONALLBITS(f,b,d) do{gpio_set_level(SCLK_PIN,ARMIT ); \
+                            gpio_set_level(SINT_PIN,((screen[f][col]&b    )== b    )?1:0); \
+                            gpio_set_level(SINB_PIN,((screen[f][col]&b<<16)== b<<16)?1:0); \
                             DELAYIT(d); \
                             gpio_set_level(SCLK_PIN,SHIFT); \
                             DELAYIT(DELAY); \
-                          } while(0) //check for a full match to set the SIN bit
-#define ONSOMEBIT(b,d) do { gpio_set_level(SCLK_PIN,ARMIT ); \
-                            gpio_set_level(SINT_PIN,(screen[col]&b    )?1:0); \
-                            gpio_set_level(SINB_PIN,(screen[col]&b<<16)?1:0); \
+                           } while(0) //check for a full match to set the SIN bit
+#define ONSOMEBIT(f,b,d) do{gpio_set_level(SCLK_PIN,ARMIT ); \
+                            gpio_set_level(SINT_PIN,(screen[f][col]&b    )?1:0); \
+                            gpio_set_level(SINB_PIN,(screen[f][col]&b<<16)?1:0); \
                             DELAYIT(d); \
                             gpio_set_level(SCLK_PIN,SHIFT); \
                             DELAYIT(DELAY); \
-                          } while(0) //check for some match to set the SIN bit
+                           } while(0) //check for some match to set the SIN bit
 
 #define LOAD 0 //XLAT low  means to hide the new values to the LEDs and keep the old values on the LEDs
 #define SHOW 1 //XLAT high means to pass the new values to the LEDs
 portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
-static void show_it_once(void) {
+static void show_frame_once(int frame) {
     //uint64_t start_time; //used in the DELAYIT macro based on esp_timer_get_time()
     int col;
     gpio_set_level(XLAT_PIN,LOAD);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11
-        ONALLBITS(0x00000003,DELAY);
-        ONALLBITS(0x0000000c,DELAY);
-        ONALLBITS(0x00000030,DELAY);
-        ONALLBITS(0x000000c0,DELAY);
-        ONALLBITS(0x00000300,DELAY);
-        ONALLBITS(0x00000c00,DELAY);
-        ONALLBITS(0x00003000,DELAY);
-        ONALLBITS(0x0000c000,DELAY);
+        ONALLBITS(frame,0x00000003,DELAY);
+        ONALLBITS(frame,0x0000000c,DELAY);
+        ONALLBITS(frame,0x00000030,DELAY);
+        ONALLBITS(frame,0x000000c0,DELAY);
+        ONALLBITS(frame,0x00000300,DELAY);
+        ONALLBITS(frame,0x00000c00,DELAY);
+        ONALLBITS(frame,0x00003000,DELAY);
+        ONALLBITS(frame,0x0000c000,DELAY);
     }
 	taskENTER_CRITICAL(&myMutex);
     gpio_set_level(XLAT_PIN,SHOW);
@@ -118,14 +251,14 @@ static void show_it_once(void) {
     gpio_set_level(XLAT_PIN,LOAD);
 	taskEXIT_CRITICAL(&myMutex);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11 or 0b10
-        ONALLBITS(0x00000002,DELAY*400);
-        ONALLBITS(0x0000000a,DELAY*400);
-        ONALLBITS(0x00000020,DELAY*400);
-        ONALLBITS(0x000000a0,DELAY*400);
-        ONALLBITS(0x00000200,DELAY*400);
-        ONALLBITS(0x00000a00,DELAY*400);
-        ONALLBITS(0x00002000,DELAY*400);
-        ONALLBITS(0x0000a000,DELAY*400);
+        ONALLBITS(frame,0x00000002,DELAY*400);
+        ONALLBITS(frame,0x0000000a,DELAY*400);
+        ONALLBITS(frame,0x00000020,DELAY*400);
+        ONALLBITS(frame,0x000000a0,DELAY*400);
+        ONALLBITS(frame,0x00000200,DELAY*400);
+        ONALLBITS(frame,0x00000a00,DELAY*400);
+        ONALLBITS(frame,0x00002000,DELAY*400);
+        ONALLBITS(frame,0x0000a000,DELAY*400);
     }
 	taskENTER_CRITICAL(&myMutex);
     gpio_set_level(XLAT_PIN,SHOW);
@@ -133,14 +266,14 @@ static void show_it_once(void) {
     gpio_set_level(XLAT_PIN,LOAD);
 	taskEXIT_CRITICAL(&myMutex);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11, 0b10 or 0b01
-        ONSOMEBIT(0x00000003,DELAY*100);
-        ONSOMEBIT(0x0000000c,DELAY*100);
-        ONSOMEBIT(0x00000030,DELAY*100);
-        ONSOMEBIT(0x000000c0,DELAY*100);
-        ONSOMEBIT(0x00000300,DELAY*100);
-        ONSOMEBIT(0x00000c00,DELAY*100);
-        ONSOMEBIT(0x00003000,DELAY*100);
-        ONSOMEBIT(0x0000c000,DELAY*100);
+        ONSOMEBIT(frame,0x00000003,DELAY*100);
+        ONSOMEBIT(frame,0x0000000c,DELAY*100);
+        ONSOMEBIT(frame,0x00000030,DELAY*100);
+        ONSOMEBIT(frame,0x000000c0,DELAY*100);
+        ONSOMEBIT(frame,0x00000300,DELAY*100);
+        ONSOMEBIT(frame,0x00000c00,DELAY*100);
+        ONSOMEBIT(frame,0x00003000,DELAY*100);
+        ONSOMEBIT(frame,0x0000c000,DELAY*100);
     }
 	taskENTER_CRITICAL(&myMutex);
     gpio_set_level(XLAT_PIN,SHOW);
@@ -372,13 +505,14 @@ static void init_gpio() {
 #define LEDC_CHANNEL    LEDC_CHANNEL_0
 #define LEDC_MODE       LEDC_LOW_SPEED_MODE
 #define LEDC_TIMER      LEDC_TIMER_0
+#define LEDC_RESOLUTION LEDC_TIMER_10_BIT // Set duty resolution to 10 bits, values 0-1024
 static void ledc_init(void) {
     // Prepare and then apply the LEDC PWM timer configuration
     ledc_timer_config_t ledc_timer = {
         .speed_mode       = LEDC_MODE,
-        .duty_resolution  = LEDC_TIMER_10_BIT, // Set duty resolution to 10 bits, values 0-1024
+        .duty_resolution  = LEDC_RESOLUTION,
         .timer_num        = LEDC_TIMER,
-        .freq_hz          = 10000,  // Set output frequency at 10 kHz
+        .freq_hz          = 3000,  // Set output frequency at 4 kHz
         .clk_cfg          = LEDC_AUTO_CLK
     };
     ledc_timer_config(&ledc_timer);
@@ -398,7 +532,9 @@ static void ledc_init(void) {
 
 uint32_t dutycycle=0;
 uint32_t overflow_counter=0;
-#define REACT 5
+#define MIN_DUTYCYCLE 14 // 0/00
+#define MAX_DUTYCYCLE 1<<LEDC_RESOLUTION
+#define REACT 5 //time (-1) it will take for a stable change to be detected
 #define N (2*REACT+1) //samples in the ringbuffer and seconds of the sliding window
 uint32_t ring[N]={0,0,0,0,0,0,0,0,0,0,0}; //TODO: initialize dynamicly if N changes
 uint32_t sort[N]={0,0,0,0,0,0,0,0,0,0,0};
@@ -427,7 +563,7 @@ void pcnt_task(void *arg) {
         idx++; if(idx==N) idx=0;
         //for (i=0;i<N;i++) UDPLUS("%ld ",sort[i]); UDPLUS("\n");
         //convert overflow_counter to duty_cycle
-        dutycycle=sqroot(sort[REACT])*10; if(dutycycle<30) dutycycle=30; if(dutycycle>1023) dutycycle=1024;
+        dutycycle=sqroot(sort[REACT])*10; if(dutycycle<MIN_DUTYCYCLE) dutycycle=MIN_DUTYCYCLE; if(dutycycle>MAX_DUTYCYCLE) dutycycle=MAX_DUTYCYCLE;
         UDPLUS("Median: %ld   now: %ld, dutycycle=%ld\n", sort[REACT], new, dutycycle);
         overflow_counter=0;
     }
@@ -484,9 +620,15 @@ void main_task(void *arg) {
     ledc_init();
     pcnt_init();
     uint64_t delta,start_time;
+    int frame=0;
+    //int frame=FRAMES-1;
     while (true) {
         start_time=esp_timer_get_time();
-        for (int i=0; i<1000; i++) show_it_once();
+        for (int i=0; i<100; i++) {
+            for (int j=0; j<10; j++) show_frame_once(frame); //TODO: check if 1/fps has elapsed
+            if (++frame==FRAMES) frame=0; //run forward
+            //if (frame--==0) frame=FRAMES-1; //run backward
+        }
         delta=esp_timer_get_time()-start_time;
         UDPLUS("1000 refresh: %llu microseconds\n",delta);
     }
