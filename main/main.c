@@ -34,161 +34,11 @@ double sqroot(double square){ //Newton Raphson
 
 // You must set version.txt file to match github version tag x.y.z for LCM4ESP32 to work
 
-#define FRAMES    16 //number of frames on the panel
-#define COLUMNS   28 //number of colums on the panel
-// uint32_t screen[COLUMNS] = {0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,
-//                             0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
-//                             0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,
-//                             0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
-//                             0xffffffff,0xaaaaaaaa,0x55555555,0x00000000,
-//                             0xffff0000,0xaaaa5555,0x5555aaaa,0x0000ffff,
-//                             0xffffffff,0xaaaaaaaa,0x55555555,0x00000000};
-// uint32_t screen[COLUMNS] = {0xffffffff,0xffffffff,0xffffffff,0x00000000,
-//                             0x00000000,0xaaaaaaaa,0xaaaaaaaa,0xaaaaaaaa,
-//                             0xaaaaaaaa,0xaaaaaaaa,0x00000000,0x00000000,
-//                             0x55555555,0x55555555,0x55555555,0x55555555,
-//                             0x00000000,0x00000000,0xaaaaaaaa,0xaaaaaaaa,
-//                             0xaaaaaaaa,0xaaaaaaaa,0xaaaaaaaa,0x00000000,
-//                             0x00000000,0xffffffff,0xffffffff,0xffffffff};
-// uint32_t screen[COLUMNS] = {
-//                             0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
-//                             0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
-//                             0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
-//                             0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
-//                             0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
-//                             0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
-//                             0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
-//                             };
-uint32_t screen[FRAMES][COLUMNS] = {
-                            {
-                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
-                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
-                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
-                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
-                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
-                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
-                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
-                            },{
-                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
-                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
-                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
-                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
-                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
-                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
-                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
-                            },{
-                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
-                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
-                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
-                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
-                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
-                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
-                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
-                            },{
-                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
-                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
-                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
-                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
-                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
-                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
-                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
-                            },{
-                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
-                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
-                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
-                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
-                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
-                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
-                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
-                            },{
-                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
-                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
-                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
-                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
-                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
-                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
-                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
-                            },{
-                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
-                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
-                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
-                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
-                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
-                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
-                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
-                            },{
-                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
-                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
-                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
-                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
-                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
-                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
-                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
-                            },{
-                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
-                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
-                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
-                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
-                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
-                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
-                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
-                            },{
-                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
-                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
-                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
-                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
-                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
-                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
-                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
-                            },{
-                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
-                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
-                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
-                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
-                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
-                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
-                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
-                            },{
-                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
-                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
-                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
-                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
-                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
-                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
-                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
-                            },{
-                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
-                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
-                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
-                            0xffaa5500,0xffaa5500,0xffaa5500,0xffaa5500,
-                            0x00ffaa55,0x00ffaa55,0x00ffaa55,0x00ffaa55,
-                            0x5500ffaa,0x5500ffaa,0x5500ffaa,0x5500ffaa,
-                            0xaa5500ff,0xaa5500ff,0xaa5500ff,0xaa5500ff,
-                            },{
-                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
-                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
-                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
-                            0xfea95403,0xfea95403,0xfea95403,0xfea95403,
-                            0x03fea954,0x03fea954,0x03fea954,0x03fea954,
-                            0x5403fea9,0x5403fea9,0x5403fea9,0x5403fea9,
-                            0xa95403fe,0xa95403fe,0xa95403fe,0xa95403fe,
-                            },{
-                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
-                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
-                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
-                            0xfaa5500f,0xfaa5500f,0xfaa5500f,0xfaa5500f,
-                            0x0ffaa550,0x0ffaa550,0x0ffaa550,0x0ffaa550,
-                            0x500ffaa5,0x500ffaa5,0x500ffaa5,0x500ffaa5,
-                            0xa5500ffa,0xa5500ffa,0xa5500ffa,0xa5500ffa,
-                            },{
-                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
-                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
-                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
-                            0xea95403f,0xea95403f,0xea95403f,0xea95403f,
-                            0x3fea9540,0x3fea9540,0x3fea9540,0x3fea9540,
-                            0x403fea95,0x403fea95,0x403fea95,0x403fea95,
-                            0x95403fea,0x95403fea,0x95403fea,0x95403fea,
-                            }};
+//select your movie, it must set COLUMNS, FRAMES anf FPS
+//#include "demo.h" //block pattern running up
+#include "bad_apple.h"
+#define FRAMETIME (1000000/FPS) // in microseconds
+#define FINETUNE 109/100 //slow down by 9% to better reach 30 fps
 
 #define LGHT_PIN  GPIO_NUM_13
 #define BLNK_PIN  GPIO_NUM_12
@@ -214,15 +64,15 @@ uint32_t screen[FRAMES][COLUMNS] = {
                                                     : "=r"(delayt):"0"(delayt)      ); \
                           } while(0) //inline assembly loop is slighty faster than function version
 #define ONALLBITS(f,b,d) do{gpio_set_level(SCLK_PIN,ARMIT ); \
-                            gpio_set_level(SINT_PIN,((screen[f][col]&b    )== b    )?1:0); \
-                            gpio_set_level(SINB_PIN,((screen[f][col]&b<<16)== b<<16)?1:0); \
+                            gpio_set_level(SINB_PIN,((screen[f][col]&b    )== b    )?1:0); \
+                            gpio_set_level(SINT_PIN,((screen[f][col]&b<<16)== b<<16)?1:0); \
                             DELAYIT(d); \
                             gpio_set_level(SCLK_PIN,SHIFT); \
                             DELAYIT(DELAY); \
                            } while(0) //check for a full match to set the SIN bit
 #define ONSOMEBIT(f,b,d) do{gpio_set_level(SCLK_PIN,ARMIT ); \
-                            gpio_set_level(SINT_PIN,(screen[f][col]&b    )?1:0); \
-                            gpio_set_level(SINB_PIN,(screen[f][col]&b<<16)?1:0); \
+                            gpio_set_level(SINB_PIN,(screen[f][col]&b    )?1:0); \
+                            gpio_set_level(SINT_PIN,(screen[f][col]&b<<16)?1:0); \
                             DELAYIT(d); \
                             gpio_set_level(SCLK_PIN,SHIFT); \
                             DELAYIT(DELAY); \
@@ -251,14 +101,14 @@ static void show_frame_once(int frame) {
     gpio_set_level(XLAT_PIN,LOAD);
 	taskEXIT_CRITICAL(&myMutex);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11 or 0b10
-        ONALLBITS(frame,0x00000002,DELAY*400);
-        ONALLBITS(frame,0x0000000a,DELAY*400);
-        ONALLBITS(frame,0x00000020,DELAY*400);
-        ONALLBITS(frame,0x000000a0,DELAY*400);
-        ONALLBITS(frame,0x00000200,DELAY*400);
-        ONALLBITS(frame,0x00000a00,DELAY*400);
-        ONALLBITS(frame,0x00002000,DELAY*400);
-        ONALLBITS(frame,0x0000a000,DELAY*400);
+        ONALLBITS(frame,0x00000002,DELAY*400*FINETUNE);
+        ONALLBITS(frame,0x0000000a,DELAY*400*FINETUNE);
+        ONALLBITS(frame,0x00000020,DELAY*400*FINETUNE);
+        ONALLBITS(frame,0x000000a0,DELAY*400*FINETUNE);
+        ONALLBITS(frame,0x00000200,DELAY*400*FINETUNE);
+        ONALLBITS(frame,0x00000a00,DELAY*400*FINETUNE);
+        ONALLBITS(frame,0x00002000,DELAY*400*FINETUNE);
+        ONALLBITS(frame,0x0000a000,DELAY*400*FINETUNE);
     }
 	taskENTER_CRITICAL(&myMutex);
     gpio_set_level(XLAT_PIN,SHOW);
@@ -266,14 +116,14 @@ static void show_frame_once(int frame) {
     gpio_set_level(XLAT_PIN,LOAD);
 	taskEXIT_CRITICAL(&myMutex);
     for (col=0;col<COLUMNS;col++) { //iterate over each column to match value 0b11, 0b10 or 0b01
-        ONSOMEBIT(frame,0x00000003,DELAY*100);
-        ONSOMEBIT(frame,0x0000000c,DELAY*100);
-        ONSOMEBIT(frame,0x00000030,DELAY*100);
-        ONSOMEBIT(frame,0x000000c0,DELAY*100);
-        ONSOMEBIT(frame,0x00000300,DELAY*100);
-        ONSOMEBIT(frame,0x00000c00,DELAY*100);
-        ONSOMEBIT(frame,0x00003000,DELAY*100);
-        ONSOMEBIT(frame,0x0000c000,DELAY*100);
+        ONSOMEBIT(frame,0x00000003,DELAY*100*FINETUNE);
+        ONSOMEBIT(frame,0x0000000c,DELAY*100*FINETUNE);
+        ONSOMEBIT(frame,0x00000030,DELAY*100*FINETUNE);
+        ONSOMEBIT(frame,0x000000c0,DELAY*100*FINETUNE);
+        ONSOMEBIT(frame,0x00000300,DELAY*100*FINETUNE);
+        ONSOMEBIT(frame,0x00000c00,DELAY*100*FINETUNE);
+        ONSOMEBIT(frame,0x00003000,DELAY*100*FINETUNE);
+        ONSOMEBIT(frame,0x0000c000,DELAY*100*FINETUNE);
     }
 	taskENTER_CRITICAL(&myMutex);
     gpio_set_level(XLAT_PIN,SHOW);
@@ -619,18 +469,20 @@ void main_task(void *arg) {
     init_gpio();
     ledc_init();
     pcnt_init();
-    uint64_t delta,start_time;
-    int frame=0;
-    //int frame=FRAMES-1;
+    UDPLUS("FPS=%d, FRAMETIME=%d, FRAMES=%d\n",FPS,FRAMETIME,FRAMES);
+    vTaskDelay(800); //8s before the movie starts, allows light_level to adjust to environment
+    uint64_t start_time,frame_start;
+    int frames=0, frame=0;
     while (true) {
         start_time=esp_timer_get_time();
-        for (int i=0; i<100; i++) {
-            for (int j=0; j<10; j++) show_frame_once(frame); //TODO: check if 1/fps has elapsed
-            if (++frame==FRAMES) frame=0; //run forward
-            //if (frame--==0) frame=FRAMES-1; //run backward
+        while ((esp_timer_get_time()-start_time)<10*1000*1000) {
+            frame_start=esp_timer_get_time();
+            while ((esp_timer_get_time()-frame_start)<FRAMETIME) show_frame_once(frame); //static 7 shows would be more stable
+            if (++frame==FRAMES) frame=0;
+            frames++;
         }
-        delta=esp_timer_get_time()-start_time;
-        UDPLUS("1000 refresh: %llu microseconds\n",delta);
+        UDPLUS("%4.1f frames per second\n",frames/10.0);
+        frames=0;
     }
 }    
 

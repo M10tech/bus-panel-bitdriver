@@ -14,6 +14,17 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.5.0 did someone say Bad Apple?
+- moved movie to a header file
+- this defines frames columns and fps
+- dynamic matching of fps results in deciding to show 8 or 7 times per frame
+- to finetune fps, an extra few % of delay is added to bits 0b11 and 0b10
+- without this, it would be 28 fps or 32 fps
+- swapped top and bottom signal (since they were swapped)
+- size of bitmaps needs const to prevent storing in dram
+- flash size demands a custom partition table for the 1800kB result
+- instructions how to create the bad_apple.h file in wiki (TODO)
+
 ### 0.4.0 moving pictures
 - make an array of frames that will be played in sequence
 - reduced blanking PWM to 3kHz allows lower minimum brightness
