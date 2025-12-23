@@ -14,6 +14,11 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.6.0 move to TXS0108E hardware
+- see details on the Wiki (TODO) for the hardware
+- use OutputEnable of TXS0108 to prevent issues at boot
+- some code cleanup
+
 ### 0.5.0 did someone say Bad Apple?
 - moved movie to a header file
 - this defines frames columns and fps

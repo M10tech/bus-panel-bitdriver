@@ -10,10 +10,7 @@
 #include "esp_wifi.h"
 #include "esp_netif_sntp.h"
 #include "driver/i2s_std.h"
-// #include "lcm_api.h"
 #include <udplogger.h>
-//#include "driver/uart.h"
-//#include "soc/uart_reg.h"
 #include "ping/ping_sock.h"
 #include "hal/wdt_hal.h"
 #include "mqtt_client.h"
@@ -24,7 +21,7 @@
 #include "driver/ledc.h"
 #include "driver/pulse_cnt.h"
 
-//#include <math.h>
+//#include <math.h> //avoid
 double sqroot(double square){ //Newton Raphson
     if (square<=0) return 0;
     double root=square/3;
@@ -40,12 +37,13 @@ double sqroot(double square){ //Newton Raphson
 #define FRAMETIME (1000000/FPS) // in microseconds
 #define FINETUNE 109/100 //slow down by 9% to better reach 30 fps
 
-#define LGHT_PIN  GPIO_NUM_13
-#define BLNK_PIN  GPIO_NUM_12
-#define XLAT_PIN  GPIO_NUM_14
-#define SCLK_PIN  GPIO_NUM_27
-#define SINT_PIN  GPIO_NUM_26
-#define SINB_PIN  GPIO_NUM_25
+#define ENAO_PIN  GPIO_NUM_13 //new hardware layout, TXS0108E output enable
+#define LGHT_PIN  GPIO_NUM_12 //pin 16
+#define BLNK_PIN  GPIO_NUM_14 //pin 9 AND pin 11 in parallel driven at ESP side
+#define SINB_PIN  GPIO_NUM_27 //pin 7
+#define SINT_PIN  GPIO_NUM_26 //pin 5
+#define SCLK_PIN  GPIO_NUM_25 //pin 3
+#define XLAT_PIN  GPIO_NUM_33 //pin 1
 
 // gpio_set_level(SCLK_PIN,ARMIT);                      //prepare rise by going to low
 // gpio_set_level(SINT_PIN,((data&b    )== b    )?1:0); //trigger SIN bit in the TOP
@@ -62,7 +60,7 @@ double sqroot(double square){ //Newton Raphson
                             __asm__ __volatile__ (  "start%=:   addi.n  %0, %0, -1\n"  \
                                                     "           bnez.n    %0, start%=" \
                                                     : "=r"(delayt):"0"(delayt)      ); \
-                          } while(0) //inline assembly loop is slighty faster than function version
+                          } while(0) //*///inline assembly loop is slighty faster than function version
 #define ONALLBITS(f,b,d) do{gpio_set_level(SCLK_PIN,ARMIT ); \
                             gpio_set_level(SINB_PIN,((screen[f][col]&b    )== b    )?1:0); \
                             gpio_set_level(SINT_PIN,((screen[f][col]&b<<16)== b<<16)?1:0); \
@@ -344,12 +342,17 @@ static void init_gpio() {
     gpio_config_t io_conf = {}; //zero-initialize the config structure
     io_conf.intr_type = GPIO_INTR_DISABLE; //disable interrupt
     io_conf.mode = GPIO_MODE_OUTPUT; //set as output mode
-    io_conf.pin_bit_mask = ((1ULL<<XLAT_PIN)|(1ULL<<SCLK_PIN)|(1ULL<<SINT_PIN)|(1ULL<<SINB_PIN));
+    io_conf.pin_bit_mask = (1ULL<<XLAT_PIN);
+    io_conf.pin_bit_mask|= (1ULL<<SCLK_PIN);
+    io_conf.pin_bit_mask|= (1ULL<<SINT_PIN);
+    io_conf.pin_bit_mask|= (1ULL<<SINB_PIN);
+    io_conf.pin_bit_mask|= (1ULL<<ENAO_PIN);
     gpio_config(&io_conf); //configure GPIOs with the given settings
     gpio_set_level(XLAT_PIN,0);
     gpio_set_level(SCLK_PIN,0);
     gpio_set_level(SINT_PIN,0);
     gpio_set_level(SINB_PIN,0);
+    gpio_set_level(ENAO_PIN,0); //keeps TXS0108E outputs in high-Z mode till we are fully ready
 }
 
 #define LEDC_CHANNEL    LEDC_CHANNEL_0
@@ -469,8 +472,10 @@ void main_task(void *arg) {
     init_gpio();
     ledc_init();
     pcnt_init();
+    gpio_set_level(ENAO_PIN,1); //enable TXS0108E outputs
     UDPLUS("FPS=%d, FRAMETIME=%d, FRAMES=%d\n",FPS,FRAMETIME,FRAMES);
     vTaskDelay(800); //8s before the movie starts, allows light_level to adjust to environment
+    UDPLUS("start\n");
     uint64_t start_time,frame_start;
     int frames=0, frame=0;
     while (true) {
