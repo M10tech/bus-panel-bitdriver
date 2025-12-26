@@ -14,6 +14,10 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.7.1 re-enable ping test
+- stable ping-rate = 1x per 7 seconds
+- also triggers on watchdog-timeout of 9s
+
 ### 0.7.0 MQTT system topic for firmware update
 - system topic is able to trigger an update
 - uses lcm-api for running the update firmware partition

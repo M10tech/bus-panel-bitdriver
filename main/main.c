@@ -243,31 +243,33 @@ static void mqtt_app_start(void) {
 char    *pinger_target=NULL;
 
 wdt_hal_context_t rtc_wdt_ctx = RWDT_HAL_CONTEXT_DEFAULT(); //RTC WatchDogTimer context
-int ping_count=60,ping_delay=1; //seconds
+int ping_count=120,ping_delay=1; //seconds
 static void ping_success(esp_ping_handle_t hdl, void *args) {
-    ping_count+=20;
-    if (ping_count>120) ping_count=120;
-    //uint32_t elapsed_time;
-    //ip_addr_t response_addr;
-    //esp_ping_get_profile(hdl, ESP_PING_PROF_TIMEGAP, &elapsed_time, sizeof(elapsed_time));
-    //esp_ping_get_profile(hdl, ESP_PING_PROF_IPADDR,  &response_addr,  sizeof(response_addr));
-    //UDPLUS("good ping from %s %lu ms -> count: %d s\n", inet_ntoa(response_addr.u_addr.ip4), elapsed_time, ping_count);
+    ping_count+=30; ping_delay*=2;
+    if (ping_count>300) ping_count=300;
+    if (ping_delay>7) ping_delay=7; //WDT times out at 9s so 8s will trigger too easily on a single missed ping
+    uint32_t elapsed_time;
+    ip_addr_t response_addr;
+    esp_ping_get_profile(hdl, ESP_PING_PROF_TIMEGAP, &elapsed_time, sizeof(elapsed_time));
+    esp_ping_get_profile(hdl, ESP_PING_PROF_IPADDR,  &response_addr,  sizeof(response_addr));
+    UDPLUS("good ping from %s %lu ms -> count: %d s\n", inet_ntoa(response_addr.u_addr.ip4), elapsed_time, ping_count);
     //feed the RTC WatchDog
     wdt_hal_write_protect_disable(&rtc_wdt_ctx);
     wdt_hal_feed(&rtc_wdt_ctx);
     wdt_hal_write_protect_enable(&rtc_wdt_ctx);
 }
 static void ping_timeout(esp_ping_handle_t hdl, void *args) {
-    //ping_count--; ping_delay=1;
-    //UDPLUS("failed ping -> count: %d s\n", ping_count);
-    //feed the RTC WatchDog ANYHOW, until the code is changed to ping the default gateway automatically
-    wdt_hal_write_protect_disable(&rtc_wdt_ctx);
-    wdt_hal_feed(&rtc_wdt_ctx);
-    wdt_hal_write_protect_enable(&rtc_wdt_ctx);
+    ping_count--; ping_delay=1;
+    UDPLUS("failed ping -> count: %d s\n", ping_count);
+    if (ping_count) { //feed the RTC WatchDog if pingcount is still OK
+        wdt_hal_write_protect_disable(&rtc_wdt_ctx);
+        wdt_hal_feed(&rtc_wdt_ctx);
+        wdt_hal_write_protect_enable(&rtc_wdt_ctx);
+    }
 }
 static void ping_task(void *argv) {
     ip_addr_t target_addr;
-    ipaddr_aton(pinger_target,&target_addr);
+    ipaddr_aton(pinger_target,&target_addr); //TODO: change to ping the default gateway automatically
     esp_ping_handle_t ping;
     esp_ping_config_t ping_config = ESP_PING_DEFAULT_CONFIG();
     ping_config.target_addr = target_addr;
