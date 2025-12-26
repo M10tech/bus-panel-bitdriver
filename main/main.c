@@ -20,6 +20,7 @@
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "driver/pulse_cnt.h"
+#include "lcm_api.h"
 
 //#include <math.h> //avoid
 double sqroot(double square){ //Newton Raphson
@@ -135,20 +136,25 @@ static void show_frame_once(int frame) {
 int display_idx=0;
 char txt1[128],   txt2[128],   txt3[128];
 int font1=0x58, font2=0x46, font3=0x46, layout=0x31, addr=0x33;
-int mqtt_order=0;
+//int mqtt_order=0;
 
+#define TOPIC_BITMAP "bus_panel/bitmap"
+#define TOPIC_SYSTEM "bus_panel/system"
 static void log_error_if_nonzero(const char *message, int error_code) {if (error_code != 0) UDPLUS("Last error %s: 0x%x\n", message, error_code);}
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
 //     UDPLUS("Event dispatched from event loop base=%s, event_id=%lx\n", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
     esp_mqtt_client_handle_t client = event->client;
-    const cJSON *json_txt1=NULL,*json_txt2=NULL,*json_txt3=NULL,*json_font1=NULL,*json_font2=NULL,*json_font3=NULL,*json_layout=NULL,*json_addr=NULL;
+//    const cJSON *json_txt1=NULL;
+    const cJSON *json_firmware=NULL;
     int msg_id;
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         UDPLUS("MQTT_EVENT_CONNECTED\n");
-        msg_id = esp_mqtt_client_subscribe(client, "bus_panel/bitmap", 0);
-        UDPLUS("sent subscribe successful, msg_id=%d\n", msg_id);
+        msg_id = esp_mqtt_client_subscribe(client, TOPIC_BITMAP, 0);
+        UDPLUS("sent subscribe successful, msg_id=%d", msg_id);
+        msg_id = esp_mqtt_client_subscribe(client, TOPIC_SYSTEM, 0);
+        UDPLUS(" & msg_id=%d\n", msg_id);
         break;
     case MQTT_EVENT_DISCONNECTED:
         UDPLUS("MQTT_EVENT_DISCONNECTED\n");
@@ -165,48 +171,27 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 //             char *myJson = cJSON_Print(json);
 //             UDPLUS("JSON: %s\n",myJson);
 //             free(myJson);
-            json_txt1 = cJSON_GetObjectItemCaseSensitive(json, "txt1");
-            if (cJSON_IsString(json_txt1) && (json_txt1->valuestring != NULL)) {
-                UDPLUS("Text 1 is \"%s\"\n", json_txt1->valuestring);
-                strcpy(txt1,json_txt1->valuestring);
+            if (!strncmp(event->topic,TOPIC_BITMAP,event->topic_len)) {
+                //nothing for now
             }
-            json_txt2 = cJSON_GetObjectItemCaseSensitive(json, "txt2");
-            if (cJSON_IsString(json_txt2) && (json_txt2->valuestring != NULL)) {
-                UDPLUS("Text 2 is \"%s\"\n", json_txt2->valuestring);
-                strcpy(txt2,json_txt2->valuestring);
+            if (!strncmp(event->topic,TOPIC_SYSTEM,event->topic_len)) {
+                json_firmware = cJSON_GetObjectItemCaseSensitive(json, "firmware_update");
+                if (cJSON_IsNumber(json_firmware)) {
+                    UDPLUS("Firmware Update is \"0x%02x\"\n", json_firmware->valueint);
+                    if (json_firmware->valueint) {
+                        UDPLUS("Firmware update ordered\n");
+                        //TODO: make ota_count do it's thing here
+                        lcm_temp_boot(); //launch lcm_ota_main
+                    }
+                }
             }
-            json_txt3 = cJSON_GetObjectItemCaseSensitive(json, "txt3");
-            if (cJSON_IsString(json_txt3) && (json_txt3->valuestring != NULL)) {
-                UDPLUS("Text 3 is \"%s\"\n", json_txt3->valuestring);
-                strcpy(txt3,json_txt3->valuestring);
-            }
-            json_font1 = cJSON_GetObjectItemCaseSensitive(json, "font1");
-            if (cJSON_IsNumber(json_font1)) {
-                UDPLUS("Font 1 is \"0x%02x\"\n", json_font1->valueint);
-                font1=json_font1->valueint;
-            }
-            json_font2 = cJSON_GetObjectItemCaseSensitive(json, "font2");
-            if (cJSON_IsNumber(json_font2)) {
-                UDPLUS("Font 2 is \"0x%02x\"\n", json_font2->valueint);
-                font2=json_font2->valueint;
-            }
-            json_font3 = cJSON_GetObjectItemCaseSensitive(json, "font3");
-            if (cJSON_IsNumber(json_font3)) {
-                UDPLUS("Font 3 is \"0x%02x\"\n", json_font3->valueint);
-                font3=json_font3->valueint;
-            }
-            json_layout = cJSON_GetObjectItemCaseSensitive(json, "layout");
-            if (cJSON_IsNumber(json_layout)) {
-                UDPLUS("Layout is \"0x%02x\"\n", json_layout->valueint);
-                layout=json_layout->valueint;
-            }
-            json_addr = cJSON_GetObjectItemCaseSensitive(json, "addr");
-            if (cJSON_IsNumber(json_addr)) {
-                UDPLUS("Address = \"0x%02x\"\n", json_addr->valueint);
-                addr=json_addr->valueint;
-            }
+//             json_txt1 = cJSON_GetObjectItemCaseSensitive(json, "txt1");
+//             if (cJSON_IsString(json_txt1) && (json_txt1->valuestring != NULL)) {
+//                 UDPLUS("Text 1 is \"%s\"\n", json_txt1->valuestring);
+//                 strcpy(txt1,json_txt1->valuestring);
+//             }
             cJSON_Delete(json);
-            mqtt_order=1;
+//             mqtt_order=1;
         } else {
         }
         break;

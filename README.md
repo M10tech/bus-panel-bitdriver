@@ -14,6 +14,10 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.7.0 MQTT system topic for firmware update
+- system topic is able to trigger an update
+- uses lcm-api for running the update firmware partition
+
 ### 0.6.1 fireplace
 - images picked up from 4K HD youtube
 - slowed down from 30 to 20 fps for more relax

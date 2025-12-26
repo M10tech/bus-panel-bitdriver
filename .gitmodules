@@ -1,3 +1,6 @@
 [submodule "components/UDPlogger"]
 	path = components/UDPlogger
 	url = https://github.com/HomeACcessoryKid/UDPlogger
+[submodule "components/lcm-api"]
+	path = components/lcm-api
+	url = https://github.com/HomeACcessoryKid/lcm-api
