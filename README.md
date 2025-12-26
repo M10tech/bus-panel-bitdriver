@@ -14,6 +14,12 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.6.1 fireplace
+- images picked up from 4K HD youtube
+- slowed down from 30 to 20 fps for more relax
+- must still find connection between head and tail (TODO)
+- howto in wiki (TODO)
+
 ### 0.6.0 move to TXS0108E hardware
 - see details on the Wiki (TODO) for the hardware
 - use OutputEnable of TXS0108 to prevent issues at boot

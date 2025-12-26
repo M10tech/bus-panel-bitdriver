@@ -33,7 +33,8 @@ double sqroot(double square){ //Newton Raphson
 
 //select your movie, it must set COLUMNS, FRAMES anf FPS
 //#include "demo.h" //block pattern running up
-#include "bad_apple.h"
+#include "fireplace.h" //fireplace emulation
+//#include "bad_apple.h"
 #define FRAMETIME (1000000/FPS) // in microseconds
 #define FINETUNE 109/100 //slow down by 9% to better reach 30 fps
 
