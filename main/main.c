@@ -20,6 +20,7 @@
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "driver/pulse_cnt.h"
+#include "esp_event.h"
 #include "lcm_api.h"
 
 //#include <math.h> //avoid
@@ -132,21 +133,49 @@ static void show_frame_once(int frame) {
 	taskEXIT_CRITICAL(&myMutex);
 }
 
-
-int display_idx=0;
-char txt1[128],   txt2[128],   txt3[128];
-int font1=0x58, font2=0x46, font3=0x46, layout=0x31, addr=0x33;
-//int mqtt_order=0;
-
+int display_addr=0;
 #define TOPIC_BITMAP "bus_panel/bitmap"
 #define TOPIC_SYSTEM "bus_panel/system"
+void mqtt_event_data(esp_mqtt_event_handle_t event) {
+    UDPLUS("TOPIC=%.*s DATA=\n", event->topic_len, event->topic);
+    UDPLUS("%.*s\n", event->data_len, event->data);
+    const cJSON *json_addr=NULL,*json_firmware=NULL;
+    cJSON *json = cJSON_ParseWithLength(event->data, event->data_len);
+    if (json) {
+//             char *myJson = cJSON_Print(json);
+//             UDPLUS("JSON: %s\n",myJson);
+//             free(myJson);
+        json_addr = cJSON_GetObjectItemCaseSensitive(json, "address");
+        if (cJSON_IsNumber(json_addr)) { //mandatory to have an address
+            UDPLUS("Address=%d, ", json_addr->valueint);
+            if (json_addr->valueint==display_addr || json_addr->valueint==0) { //only listen to messages for me or for all
+                UDPLUS("this is for us, what could it be?\n");
+                if (!strncmp(event->topic,TOPIC_BITMAP,event->topic_len)) {
+                    //nothing for now
+                }
+                if (!strncmp(event->topic,TOPIC_SYSTEM,event->topic_len)) {
+                    //TODO: provide new config via MQTT to move to other wifi/mqtt
+                    json_firmware = cJSON_GetObjectItemCaseSensitive(json, "firmware_update");
+                    if (cJSON_IsNumber(json_firmware)) {
+                        UDPLUS("Firmware Update value is %d\n", json_firmware->valueint);
+                        if (json_firmware->valueint) {
+                            UDPLUS("Firmware update ordered\n");
+                            gpio_set_level(ENAO_PIN,0); //disable TXS0108E outputs
+                            //TODO: make ota_count do it's thing here
+                            lcm_temp_boot(); //launch lcm_ota_main
+                        }
+                    }
+                }
+            } else UDPLUS("this is not for us, ignore\n");
+        } else UDPLUS("Must provide an address as integer\n");
+        cJSON_Delete(json);
+    }
+}
 static void log_error_if_nonzero(const char *message, int error_code) {if (error_code != 0) UDPLUS("Last error %s: 0x%x\n", message, error_code);}
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
 //     UDPLUS("Event dispatched from event loop base=%s, event_id=%lx\n", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
     esp_mqtt_client_handle_t client = event->client;
-//    const cJSON *json_txt1=NULL;
-    const cJSON *json_firmware=NULL;
     int msg_id;
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
@@ -154,7 +183,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         msg_id = esp_mqtt_client_subscribe(client, TOPIC_BITMAP, 0);
         UDPLUS("sent subscribe successful, msg_id=%d", msg_id);
         msg_id = esp_mqtt_client_subscribe(client, TOPIC_SYSTEM, 0);
-        UDPLUS(" & msg_id=%d\n", msg_id);
+        UDPLUS("&msg_id=%d, listening to address %d\n", msg_id, display_addr);
         break;
     case MQTT_EVENT_DISCONNECTED:
         UDPLUS("MQTT_EVENT_DISCONNECTED\n");
@@ -164,36 +193,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         break;
     case MQTT_EVENT_DATA:
         //UDPLUS( "MQTT_EVENT_DATA\n");
-        UDPLUS("TOPIC=%.*s DATA=\n", event->topic_len, event->topic);
-        UDPLUS("%.*s\n", event->data_len, event->data);
-        cJSON *json = cJSON_ParseWithLength(event->data, event->data_len);
-        if (json) {
-//             char *myJson = cJSON_Print(json);
-//             UDPLUS("JSON: %s\n",myJson);
-//             free(myJson);
-            if (!strncmp(event->topic,TOPIC_BITMAP,event->topic_len)) {
-                //nothing for now
-            }
-            if (!strncmp(event->topic,TOPIC_SYSTEM,event->topic_len)) {
-                json_firmware = cJSON_GetObjectItemCaseSensitive(json, "firmware_update");
-                if (cJSON_IsNumber(json_firmware)) {
-                    UDPLUS("Firmware Update is \"0x%02x\"\n", json_firmware->valueint);
-                    if (json_firmware->valueint) {
-                        UDPLUS("Firmware update ordered\n");
-                        //TODO: make ota_count do it's thing here
-                        lcm_temp_boot(); //launch lcm_ota_main
-                    }
-                }
-            }
-//             json_txt1 = cJSON_GetObjectItemCaseSensitive(json, "txt1");
-//             if (cJSON_IsString(json_txt1) && (json_txt1->valuestring != NULL)) {
-//                 UDPLUS("Text 1 is \"%s\"\n", json_txt1->valuestring);
-//                 strcpy(txt1,json_txt1->valuestring);
-//             }
-            cJSON_Delete(json);
-//             mqtt_order=1;
-        } else {
-        }
+        mqtt_event_data(event);
         break;
     case MQTT_EVENT_ERROR:
         UDPLUS("MQTT_EVENT_ERROR\n");
@@ -202,7 +202,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             log_error_if_nonzero("reported from tls stack", event->error_handle->esp_tls_stack_err);
             log_error_if_nonzero("captured as transport's socket errno",  event->error_handle->esp_transport_sock_errno);
             UDPLUS("Last errno string (%s)\n", strerror(event->error_handle->esp_transport_sock_errno));
-
         }
         break;
     default:
@@ -214,34 +213,16 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 char *broker_uri=NULL;
 static void mqtt_app_start(void) {
     esp_mqtt_client_config_t mqtt_cfg={};
-    if (broker_uri==NULL) {
-        char line[128];
-        int count = 0;
-        UDPLUS("Please enter url of mqtt broker\n");
-        while (count < 127) {
-            int c = fgetc(stdin);
-            if (c == '\n') {
-                line[count] = '\0';
-                break;
-            } else if (c > 0 && c < 127) {
-                line[count] = c;
-                ++count;
-            }
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-        }
-        mqtt_cfg.broker.address.uri = line;
-        UDPLUS("Broker url: %s\n", line);
-    } else {
+    if (broker_uri) {
         mqtt_cfg.broker.address.uri = broker_uri;
-    }
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-    /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
-    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-    esp_mqtt_client_start(client);
+        esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+        /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
+        esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+        esp_mqtt_client_start(client);
+    } //else ignore MQTT
 }
 
 char    *pinger_target=NULL;
-
 wdt_hal_context_t rtc_wdt_ctx = RWDT_HAL_CONTEXT_DEFAULT(); //RTC WatchDogTimer context
 int ping_count=120,ping_delay=1; //seconds
 static void ping_success(esp_ping_handle_t hdl, void *args) {
@@ -268,8 +249,9 @@ static void ping_timeout(esp_ping_handle_t hdl, void *args) {
     }
 }
 static void ping_task(void *argv) {
+    vTaskDelay(5000/portTICK_PERIOD_MS); //allow other inits to report and give DHCP a head start
     ip_addr_t target_addr;
-    ipaddr_aton(pinger_target,&target_addr); //TODO: change to ping the default gateway automatically
+    ipaddr_aton(pinger_target,&target_addr);
     esp_ping_handle_t ping;
     esp_ping_config_t ping_config = ESP_PING_DEFAULT_CONFIG();
     ping_config.target_addr = target_addr;
@@ -289,8 +271,9 @@ static void ping_task(void *argv) {
         vTaskDelay(1000/portTICK_PERIOD_MS); //waiting for answer or timeout to update ping_delay value
     }
     UDPLUS("restarting because can't ping home-hub\n");
+    gpio_set_level(ENAO_PIN,0); //disable TXS0108E outputs
     vTaskDelay(1000/portTICK_PERIOD_MS); //allow UDPlog to flush output
-    esp_restart(); //TODO: disable GPIO outputs
+    esp_restart();
 }
 
 static void time_task(void *argv) {
@@ -321,7 +304,7 @@ static void ota_string() {
         broker_uri=strtok(NULL,";");
         pinger_target=strtok(NULL,";");
     }
-    if (display_nr==NULL) display_idx=0; else display_idx=atoi(display_nr);
+    if (display_nr==NULL) display_addr=0; else display_addr=atoi(display_nr);
     if (pinger_target==NULL) pinger_target=localhost;
     //DO NOT free the otas since it carries the config pieces
 }
@@ -442,28 +425,65 @@ void pcnt_init(void) {
     xTaskCreate(pcnt_task,"pcntT",2048, NULL, 2, NULL); //if prio is 1 then does hardly get a chance to find a gap in the main loop
 }
 
-void main_task(void *arg) {
-    udplog_init(3);
-    vTaskDelay(300); //Allow Wi-Fi to connect
-    UDPLUS("\n\nBus-Panel-BitDriver %s\n",esp_app_get_description()->version);
+/*
+ESP_EVENT_DECLARE_BASE(IP_EVENT); //IP event base declaration
+typedef enum { //IP event declarations
+    IP_EVENT_STA_GOT_IP,               //station got IP from connected AP
+    IP_EVENT_STA_LOST_IP,              //station lost IP and the IP is reset to 0
+    ...
+} ip_event_t;
+typedef struct { //Event structure for IP_EVENT_STA_GOT_IP, IP_EVENT_ETH_GOT_IP events
+    esp_ip4_addr_t ip;      //Interface IPV4 address
+    esp_ip4_addr_t netmask; //Interface IPV4 netmask
+    esp_ip4_addr_t gw;      //Interface IPV4 gateway address
+} esp_netif_ip_info_t;
+typedef struct { //Event structure for IP_EVENT_GOT_IP event
+    esp_netif_t *esp_netif;          //Pointer to corresponding esp-netif object
+    esp_netif_ip_info_t ip_info;     //IP address, netmask, gatway IP address
+    bool ip_changed;                 //Whether the assigned IP has changed or not
+} ip_event_got_ip_t;
+//*/
+static void ip_event_handler(void* handler_args, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    //UDPLUS("%s:%ld: all_event_handler\n", event_base, event_id);
+    if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        //ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        //UDPLUS("Connected with IP Address: " IPSTR ", GW: " IPSTR "\n", IP2STR(&event->ip_info.ip),IP2STR(&event->ip_info.gw));
+        mqtt_app_start();
+    }
+}
 
-//     nvs_handle_t lcm_handle;nvs_open("LCM", NVS_READWRITE, &lcm_handle);nvs_set_str(lcm_handle,"ota_string", "3;mqtt://busdisplay:notthesecret@192.168.178.5;192.168.178.5");
-//     nvs_commit(lcm_handle); //can be used if not using LCM
+void main_task(void *arg) {
+    //nvs_handle_t lcm_handle;nvs_open("LCM", NVS_READWRITE, &lcm_handle);nvs_set_str(lcm_handle,"ota_string", "1;mqtt://busdisplay:notthesecret@192.168.178.5;192.168.178.5");
+    //nvs_commit(lcm_handle); //can be used if not using LCM
     ota_string();
+
+    esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, ip_event_handler, NULL, NULL);
+    udplog_init(3);
+    vTaskDelay(300); //Allow Wi-Fi to connect to not pollute the logging
+    UDPLUS("\n\nBus-Panel-BitDriver %s\n",esp_app_get_description()->version);
 
     xTaskCreate(time_task,"Time", 2048, NULL, 6, NULL);
     xTaskCreate(ping_task,"PingT",2048, NULL, 1, NULL);
 
-    mqtt_app_start();
-
-    vTaskDelay(50);
     init_gpio();
     ledc_init();
     pcnt_init();
     gpio_set_level(ENAO_PIN,1); //enable TXS0108E outputs
+    gpio_set_level(XLAT_PIN,LOAD); //load panel with all LEDs off
+    DELAYIT(DELAY);
+    for (int led=0; led<COLUMNS*8; led++) {
+        gpio_set_level(SCLK_PIN,ARMIT);
+        gpio_set_level(SINB_PIN,0);
+        gpio_set_level(SINT_PIN,0);
+        DELAYIT(DELAY);
+        gpio_set_level(SCLK_PIN,SHIFT);
+        DELAYIT(DELAY);
+    }
+    gpio_set_level(XLAT_PIN,SHOW);
+
     UDPLUS("FPS=%d, FRAMETIME=%d, FRAMES=%d\n",FPS,FRAMETIME,FRAMES);
     vTaskDelay(800); //8s before the movie starts, allows light_level to adjust to environment
-    UDPLUS("start\n");
+    UDPLUS("Start the movie\n");
     uint64_t start_time,frame_start;
     int frames=0, frame=0;
     while (true) {

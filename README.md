@@ -14,6 +14,13 @@ Also read the WIKI to get background info on the hardware needed and the pricipl
 
 ## Version History
 
+### 0.7.2 MQTT extensions
+- use addr in any message to address a single panel
+- this is the first item in the config-string
+- start MQTT only after IP acquired
+- blank panel on start and between reboots
+- make MQTT optional, if not specified - or 0.0.0.0, then ignore
+
 ### 0.7.1 re-enable ping test
 - stable ping-rate = 1x per 7 seconds
 - also triggers on watchdog-timeout of 9s
